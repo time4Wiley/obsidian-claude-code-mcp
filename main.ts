@@ -65,13 +65,16 @@ export default class ClaudeMcpPlugin extends Plugin {
 		fs.mkdirSync(ideDir, { recursive: true });
 
 		this.lockFilePath = path.join(ideDir, `${process.pid}.lock`);
+		const basePath =
+			(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
 		fs.writeFileSync(
 			this.lockFilePath,
 			JSON.stringify({
-				name: "obsidian",
 				pid: process.pid,
+				workspaceFolders: [basePath],
+				ideName: "Obsidian",
+				transport: "ws",
 				port,
-				proto: "ws",
 			})
 		);
 	}
@@ -82,7 +85,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 			fs.unlinkSync(this.lockFilePath);
 	}
 
-	/* ---------------- MCP message handler (stub) ---------------- */
+	/* ---------------- MCP message handler ---------------- */
 
 	private handleMcpMessage(sock: WebSocket, raw: string) {
 		let req: McpRequest;
@@ -99,16 +102,193 @@ export default class ClaudeMcpPlugin extends Plugin {
 			case "ping":
 				return reply({ result: "pong" });
 
-			/* TODO: wire these into Obsidian’s API                *
-			 * case "readFile":   …                                *
-			 * case "writeFile":  …                                *
-			 * case "getOpenFiles": …                              */
+			case "readFile":
+				return this.handleReadFile(req, reply);
+
+			case "writeFile":
+				return this.handleWriteFile(req, reply);
+
+			case "getOpenFiles":
+				return this.handleGetOpenFiles(req, reply);
+
+			case "listFiles":
+				return this.handleListFiles(req, reply);
+
+			case "getWorkspaceInfo":
+				return this.handleGetWorkspaceInfo(req, reply);
+
+			case "getCurrentFile":
+				return this.handleGetCurrentFile(req, reply);
 
 			default:
 				return reply({
 					error: { code: -32601, message: "method not implemented" },
 				});
 		}
+	}
+
+	/* ---------------- MCP method implementations ---------------- */
+
+	private async handleReadFile(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const { path } = req.params || {};
+			if (!path || typeof path !== "string") {
+				return reply({
+					error: { code: -32602, message: "invalid path parameter" },
+				});
+			}
+
+			const normalizedPath = this.normalizePath(path);
+			if (!normalizedPath) {
+				return reply({
+					error: { code: -32603, message: "invalid file path" },
+				});
+			}
+
+			const content = await this.app.vault.adapter.read(normalizedPath);
+			reply({ result: content });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to read file: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleWriteFile(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const { path, content } = req.params || {};
+			if (
+				!path ||
+				typeof path !== "string" ||
+				typeof content !== "string"
+			) {
+				return reply({
+					error: { code: -32602, message: "invalid parameters" },
+				});
+			}
+
+			const normalizedPath = this.normalizePath(path);
+			if (!normalizedPath) {
+				return reply({
+					error: { code: -32603, message: "invalid file path" },
+				});
+			}
+
+			await this.app.vault.adapter.write(normalizedPath, content);
+			reply({ result: true });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to write file: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleGetOpenFiles(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
+		try {
+			const activeFile = this.app.workspace.getActiveFile();
+			const openFiles = activeFile ? [activeFile.path] : [];
+			reply({ result: openFiles });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to get open files: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleGetCurrentFile(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
+		try {
+			const activeFile = this.app.workspace.getActiveFile();
+			reply({ result: activeFile ? activeFile.path : null });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to get current file: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleListFiles(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const { pattern } = req.params || {};
+			const allFiles = this.app.vault.getFiles();
+
+			let filteredFiles = allFiles.map((file) => file.path);
+
+			if (pattern && typeof pattern === "string") {
+				const regex = new RegExp(pattern);
+				filteredFiles = filteredFiles.filter((path) =>
+					regex.test(path)
+				);
+			}
+
+			reply({ result: filteredFiles });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to list files: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleGetWorkspaceInfo(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
+		try {
+			const vaultName = this.app.vault.getName();
+			const basePath =
+				(this.app.vault.adapter as any).getBasePath?.() || "unknown";
+			const fileCount = this.app.vault.getFiles().length;
+
+			const workspaceInfo = {
+				name: vaultName,
+				path: basePath,
+				fileCount,
+				type: "obsidian-vault",
+			};
+
+			reply({ result: workspaceInfo });
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to get workspace info: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	/* ---------------- utility methods ---------------- */
+
+	private normalizePath(path: string): string | null {
+		// Remove leading slash if present (vault-relative paths)
+		const cleaned = path.startsWith("/") ? path.slice(1) : path;
+
+		// Basic validation - no directory traversal
+		if (cleaned.includes("..") || cleaned.includes("~")) {
+			return null;
+		}
+
+		return cleaned;
 	}
 
 	/* ---------------- optional: spawn Claude in terminal pane ---- */
