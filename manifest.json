@@ -1,0 +1,10 @@
+{
+	"id": "claude-code-terminal",
+	"name": "Claude Code Terminal",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "A terminal interface for Claude Code within Obsidian.",
+	"author": "",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}
