@@ -58,7 +58,8 @@ npm i ws @types/ws @types/node  # Additional dependencies for MCP server
 1. Build plugin: `bun run build`
 2. Copy to test vault: `.obsidian/plugins/claude-code-terminal/`
 3. Enable plugin in Obsidian
-4. Run `claude` in terminal - should auto-discover the MCP server
+4. Run `claude` in terminal and use `/ide` to select Obsidian
+5. If connection issues occur, check Obsidian Developer Console and see [PROTOCOL.md](./PROTOCOL.md)
 
 ### Plugin Installation
 
@@ -68,7 +69,7 @@ For manual testing, copy `main.js`, `styles.css`, and `manifest.json` to your va
 
 ### MCP Protocol Implementation
 
-The plugin uses JSON-RPC 2.0 over WebSocket for MCP communication:
+The plugin uses JSON-RPC 2.0 over WebSocket for MCP communication. **For detailed protocol specification, debugging, and troubleshooting connection issues, see [PROTOCOL.md](./PROTOCOL.md)**.
 
 ```typescript
 interface McpRequest {
@@ -85,6 +86,12 @@ interface McpResponse {
   error?: { code: number; message: string };
 }
 ```
+
+### Critical Implementation Notes
+
+- **Lock File Naming**: MUST be named `[port].lock` not `[pid].lock`
+- **Discovery**: Claude Code CLI discovers IDEs by scanning `~/.claude/ide/` directory
+- **WebSocket Binding**: Server must bind to localhost for security
 
 ### File Path Handling
 

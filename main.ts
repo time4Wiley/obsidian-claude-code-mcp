@@ -30,6 +30,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 	/* ---------------- core lifecycle ---------------- */
 
 	async onload() {
+		console.log("Claude MCP Plugin loading...");
 		await this.startMcpServer();
 		await this.launchClaudeTerminal(); // optional
 		new Notice(
@@ -47,14 +48,29 @@ export default class ClaudeMcpPlugin extends Plugin {
 		// 0 = choose a random free port
 		this.wss = new WebSocketServer({ port: 0 });
 
+		console.log("WSS", this.wss.address());
+
 		// address() is cast-safe once server is listening
 		const port = (this.wss.address() as any).port as number;
+		console.log("MCP WebSocket server started on localhost:", port);
 
-		this.wss.on("connection", (sock: WebSocket) =>
-			sock.on("message", (data) =>
-				this.handleMcpMessage(sock, data.toString())
-			)
-		);
+		this.wss.on("connection", (sock: WebSocket) => {
+			console.log("Claude client connected via WebSocket");
+			sock.on("message", (data) => {
+				console.log("Received MCP message:", data.toString());
+				this.handleMcpMessage(sock, data.toString());
+			});
+			sock.on("close", () => {
+				console.log("Claude client disconnected");
+			});
+			sock.on("error", (error) => {
+				console.error("WebSocket error:", error);
+			});
+		});
+
+		this.wss.on("error", (error) => {
+			console.error("WebSocket server error:", error);
+		});
 
 		// Write the discovery lock-file Claude looks for
 		const ideDir = path.join(
@@ -64,19 +80,26 @@ export default class ClaudeMcpPlugin extends Plugin {
 		);
 		fs.mkdirSync(ideDir, { recursive: true });
 
-		this.lockFilePath = path.join(ideDir, `${process.pid}.lock`);
+		this.lockFilePath = path.join(ideDir, `${port}.lock`);
 		const basePath =
 			(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
-		fs.writeFileSync(
-			this.lockFilePath,
-			JSON.stringify({
-				pid: process.pid,
-				workspaceFolders: [basePath],
-				ideName: "Obsidian",
-				transport: "ws",
-				port,
-			})
-		);
+		const lockFileContent = {
+			pid: process.pid,
+			workspaceFolders: [basePath],
+			ideName: "Obsidian", 
+			transport: "ws"
+		};
+		fs.writeFileSync(this.lockFilePath, JSON.stringify(lockFileContent));
+		
+		// Set environment variables that Claude Code CLI expects
+		process.env.CLAUDE_CODE_SSE_PORT = port.toString();
+		process.env.ENABLE_IDE_INTEGRATION = "true";
+		
+		console.log("Lock file written:", this.lockFilePath, lockFileContent);
+		console.log("Environment variables set:", {
+			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT,
+			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION
+		});
 	}
 
 	private stopMcpServer() {
@@ -99,6 +122,21 @@ export default class ClaudeMcpPlugin extends Plugin {
 			sock.send(JSON.stringify({ jsonrpc: "2.0", id: req.id, ...msg }));
 
 		switch (req.method) {
+			case "initialize":
+				return this.handleInitialize(req, reply);
+
+			case "notifications/initialized":
+				return this.handleInitialized(req, reply);
+
+			case "ide_connected":
+				return this.handleIdeConnected(req, reply);
+
+			case "tools/list":
+				return this.handleToolsList(req, reply);
+
+			case "prompts/list":
+				return this.handlePromptsList(req, reply);
+
 			case "ping":
 				return reply({ result: "pong" });
 
@@ -120,6 +158,9 @@ export default class ClaudeMcpPlugin extends Plugin {
 			case "getCurrentFile":
 				return this.handleGetCurrentFile(req, reply);
 
+			case "tools/call":
+				return this.handleToolCall(req, reply);
+
 			default:
 				return reply({
 					error: { code: -32601, message: "method not implemented" },
@@ -128,6 +169,172 @@ export default class ClaudeMcpPlugin extends Plugin {
 	}
 
 	/* ---------------- MCP method implementations ---------------- */
+
+	private async handleInitialize(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const { protocolVersion, capabilities, clientInfo } = req.params || {};
+			console.log("Initializing MCP connection:", { protocolVersion, clientInfo });
+			
+			// Respond with server capabilities
+			reply({
+				result: {
+					protocolVersion: "2025-03-26",
+					capabilities: {
+						roots: {
+							listChanged: false
+						},
+						tools: {
+							listChanged: false
+						},
+						resources: {
+							subscribe: false,
+							listChanged: false
+						},
+						prompts: {
+							listChanged: false
+						}
+					},
+					serverInfo: {
+						name: "obsidian-claude-code",
+						version: "1.0.0"
+					}
+				}
+			});
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to initialize: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleInitialized(req: McpRequest, reply: (msg: any) => void) {
+		console.log("Client initialized - sending workspace context");
+		// No response needed for notifications
+	}
+
+	private async handleIdeConnected(req: McpRequest, reply: (msg: any) => void) {
+		const { pid } = req.params || {};
+		console.log("IDE connected with PID:", pid);
+		// No response needed for notifications
+	}
+
+	private async handleToolsList(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const tools = [
+				{
+					name: "get_current_file",
+					description: "Get the currently active file in Obsidian",
+					inputSchema: {
+						type: "object",
+						properties: {}
+					}
+				},
+				{
+					name: "get_workspace_files", 
+					description: "List all files in the Obsidian vault",
+					inputSchema: {
+						type: "object",
+						properties: {
+							pattern: {
+								type: "string",
+								description: "Optional pattern to filter files"
+							}
+						}
+					}
+				}
+			];
+			
+			console.log("Sending tools list:", tools);
+			reply({
+				result: {
+					tools: tools
+				}
+			});
+		} catch (error) {
+			console.error("Failed to list tools:", error);
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to list tools: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handlePromptsList(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			reply({
+				result: {
+					prompts: []
+				}
+			});
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to list prompts: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleToolCall(req: McpRequest, reply: (msg: any) => void) {
+		try {
+			const { name, arguments: args } = req.params || {};
+			console.log("Tool call:", name, args);
+
+			switch (name) {
+				case "get_current_file":
+					const activeFile = this.app.workspace.getActiveFile();
+					return reply({
+						result: {
+							content: [{
+								type: "text",
+								text: activeFile 
+									? `Current file: ${activeFile.path}` 
+									: "No file currently active"
+							}]
+						}
+					});
+
+				case "get_workspace_files":
+					const { pattern } = args || {};
+					const allFiles = this.app.vault.getFiles();
+					let filteredFiles = allFiles.map((file) => file.path);
+
+					if (pattern && typeof pattern === "string") {
+						const regex = new RegExp(pattern);
+						filteredFiles = filteredFiles.filter((path) =>
+							regex.test(path)
+						);
+					}
+
+					return reply({
+						result: {
+							content: [{
+								type: "text",
+								text: `Files in vault:\n${filteredFiles.join('\n')}`
+							}]
+						}
+					});
+
+				default:
+					return reply({
+						error: { code: -32601, message: "tool not found" },
+					});
+			}
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to call tool: ${error.message}`,
+				},
+			});
+		}
+	}
 
 	private async handleReadFile(req: McpRequest, reply: (msg: any) => void) {
 		try {
