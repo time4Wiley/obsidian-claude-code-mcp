@@ -4,7 +4,7 @@
  * 1. `npm i ws node-pty @types/ws @types/node --save`
  * 2. Compile with the normal Obsidian plugin build pipeline
  **********************************************************************/
-import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
+import { Plugin, Notice, WorkspaceLeaf, Editor } from "obsidian";
 import { WebSocketServer, WebSocket } from "ws";
 import * as fs from "fs";
 import * as path from "path";
@@ -59,7 +59,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 		this.wss.on("connection", (sock: WebSocket) => {
 			console.log("Claude client connected via WebSocket");
 			this.connectedClients.add(sock);
-			
+
 			sock.on("message", (data) => {
 				console.log("Received MCP message:", data.toString());
 				this.handleMcpMessage(sock, data.toString());
@@ -72,7 +72,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 				console.error("WebSocket error:", error);
 				this.connectedClients.delete(sock);
 			});
-			
+
 			// Send initial file context when Claude connects
 			this.sendCurrentFileContext();
 		});
@@ -95,19 +95,19 @@ export default class ClaudeMcpPlugin extends Plugin {
 		const lockFileContent = {
 			pid: process.pid,
 			workspaceFolders: [basePath],
-			ideName: "Obsidian", 
-			transport: "ws"
+			ideName: "Obsidian",
+			transport: "ws",
 		};
 		fs.writeFileSync(this.lockFilePath, JSON.stringify(lockFileContent));
-		
+
 		// Set environment variables that Claude Code CLI expects
 		process.env.CLAUDE_CODE_SSE_PORT = port.toString();
 		process.env.ENABLE_IDE_INTEGRATION = "true";
-		
+
 		console.log("Lock file written:", this.lockFilePath, lockFileContent);
 		console.log("Environment variables set:", {
 			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT,
-			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION
+			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION,
 		});
 	}
 
@@ -181,33 +181,37 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 	private async handleInitialize(req: McpRequest, reply: (msg: any) => void) {
 		try {
-			const { protocolVersion, capabilities, clientInfo } = req.params || {};
-			console.log("Initializing MCP connection:", { protocolVersion, clientInfo });
-			
+			const { protocolVersion, capabilities, clientInfo } =
+				req.params || {};
+			console.log("Initializing MCP connection:", {
+				protocolVersion,
+				clientInfo,
+			});
+
 			// Respond with server capabilities
 			reply({
 				result: {
 					protocolVersion: "2025-03-26",
 					capabilities: {
 						roots: {
-							listChanged: false
+							listChanged: false,
 						},
 						tools: {
-							listChanged: false
+							listChanged: false,
 						},
 						resources: {
 							subscribe: false,
-							listChanged: false
+							listChanged: false,
 						},
 						prompts: {
-							listChanged: false
-						}
+							listChanged: false,
+						},
 					},
 					serverInfo: {
 						name: "obsidian-claude-code",
-						version: "1.0.0"
-					}
-				}
+						version: "1.0.0",
+					},
+				},
 			});
 		} catch (error) {
 			reply({
@@ -219,12 +223,18 @@ export default class ClaudeMcpPlugin extends Plugin {
 		}
 	}
 
-	private async handleInitialized(req: McpRequest, reply: (msg: any) => void) {
+	private async handleInitialized(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
 		console.log("Client initialized - sending workspace context");
 		// No response needed for notifications
 	}
 
-	private async handleIdeConnected(req: McpRequest, reply: (msg: any) => void) {
+	private async handleIdeConnected(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
 		const { pid } = req.params || {};
 		console.log("IDE connected with PID:", pid);
 		// No response needed for notifications
@@ -238,29 +248,29 @@ export default class ClaudeMcpPlugin extends Plugin {
 					description: "Get the currently active file in Obsidian",
 					inputSchema: {
 						type: "object",
-						properties: {}
-					}
+						properties: {},
+					},
 				},
 				{
-					name: "get_workspace_files", 
+					name: "get_workspace_files",
 					description: "List all files in the Obsidian vault",
 					inputSchema: {
 						type: "object",
 						properties: {
 							pattern: {
 								type: "string",
-								description: "Optional pattern to filter files"
-							}
-						}
-					}
-				}
+								description: "Optional pattern to filter files",
+							},
+						},
+					},
+				},
 			];
-			
+
 			console.log("Sending tools list:", tools);
 			reply({
 				result: {
-					tools: tools
-				}
+					tools: tools,
+				},
 			});
 		} catch (error) {
 			console.error("Failed to list tools:", error);
@@ -273,12 +283,15 @@ export default class ClaudeMcpPlugin extends Plugin {
 		}
 	}
 
-	private async handlePromptsList(req: McpRequest, reply: (msg: any) => void) {
+	private async handlePromptsList(
+		req: McpRequest,
+		reply: (msg: any) => void
+	) {
 		try {
 			reply({
 				result: {
-					prompts: []
-				}
+					prompts: [],
+				},
 			});
 		} catch (error) {
 			reply({
@@ -300,13 +313,15 @@ export default class ClaudeMcpPlugin extends Plugin {
 					const activeFile = this.app.workspace.getActiveFile();
 					return reply({
 						result: {
-							content: [{
-								type: "text",
-								text: activeFile 
-									? `Current file: ${activeFile.path}` 
-									: "No file currently active"
-							}]
-						}
+							content: [
+								{
+									type: "text",
+									text: activeFile
+										? `Current file: ${activeFile.path}`
+										: "No file currently active",
+								},
+							],
+						},
 					});
 
 				case "get_workspace_files":
@@ -323,11 +338,15 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 					return reply({
 						result: {
-							content: [{
-								type: "text",
-								text: `Files in vault:\n${filteredFiles.join('\n')}`
-							}]
-						}
+							content: [
+								{
+									type: "text",
+									text: `Files in vault:\n${filteredFiles.join(
+										"\n"
+									)}`,
+								},
+							],
+						},
 					});
 
 				default:
@@ -509,28 +528,118 @@ export default class ClaudeMcpPlugin extends Plugin {
 				this.sendCurrentFileContext();
 			})
 		);
+
+		// Listen for editor changes (cursor position, selection) - multiple event types
+		this.registerEvent(
+			this.app.workspace.on("editor-change", (editor) => {
+				console.log("editor-change event fired");
+				this.sendSelectionContext(editor);
+			})
+		);
+
+		// Also try these alternative events
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", () => {
+				console.log("active-leaf-change - checking for selection");
+				this.checkAndSendSelection();
+			})
+		);
+
+		// Listen for DOM selection changes
+		this.registerDomEvent(document, 'selectionchange', () => {
+			console.log("selectionchange event fired");
+			this.checkAndSendSelection();
+		});
+	}
+
+	private checkAndSendSelection() {
+		const activeLeaf = this.app.workspace.activeLeaf;
+		const view = activeLeaf?.view;
+		const editor = (view as any)?.editor;
+
+		if (editor) {
+			console.log("Found editor, sending selection context");
+			this.sendSelectionContext(editor);
+		}
 	}
 
 	private sendCurrentFileContext() {
 		if (this.connectedClients.size === 0) return;
 
 		const activeFile = this.app.workspace.getActiveFile();
+
+		// Try to get the active editor for cursor/selection info
+		const activeLeaf = this.app.workspace.activeLeaf;
+		const view = activeLeaf?.view;
+		const editor = (view as any)?.editor;
+
+		if (editor && activeFile) {
+			this.sendSelectionContext(editor);
+		} else {
+			// Fallback to basic file context
+			const message = {
+				jsonrpc: "2.0",
+				method: "selection_changed",
+				params: {
+					text: "",
+					filePath: activeFile ? activeFile.path : null,
+					fileUrl: activeFile
+						? `file://${this.getAbsolutePath(activeFile.path)}`
+						: null,
+					selection: {
+						start: { line: 0, character: 0 },
+						end: { line: 0, character: 0 },
+						isEmpty: true,
+					},
+				},
+			};
+
+			console.log("Sending basic selection_changed:", message);
+			this.broadcastToClients(message);
+		}
+	}
+
+	private sendSelectionContext(editor: Editor) {
+		if (this.connectedClients.size === 0) return;
+
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) return;
+
+		// Get cursor position and selection
+		const cursor = editor.getCursor();
+		const selection = editor.getSelection();
+		const hasSelection = selection.length > 0;
+
+		// Get selection range if text is selected
+		let selectionRange;
+		if (hasSelection) {
+			const from = editor.getCursor("from");
+			const to = editor.getCursor("to");
+			selectionRange = {
+				start: { line: from.line, character: from.ch },
+				end: { line: to.line, character: to.ch },
+				isEmpty: false,
+			};
+		} else {
+			selectionRange = {
+				start: { line: cursor.line, character: cursor.ch },
+				end: { line: cursor.line, character: cursor.ch },
+				isEmpty: true,
+			};
+		}
+
 		const message = {
 			jsonrpc: "2.0",
 			method: "selection_changed",
 			params: {
-				text: "", // No text selected initially
-				filePath: activeFile ? activeFile.path : null,
-				fileUrl: activeFile ? `file://${this.getAbsolutePath(activeFile.path)}` : null,
-				selection: {
-					start: { line: 0, character: 0 },
-					end: { line: 0, character: 0 },
-					isEmpty: true
-				}
-			}
+				text: selection,
+				filePath: activeFile.path,
+				fileUrl: `file://${this.getAbsolutePath(activeFile.path)}`,
+				selection: selectionRange,
+			},
 		};
 
-		console.log("Sending selection_changed:", message);
+		console.log("Sending detailed selection_changed:", message);
 		this.broadcastToClients(message);
 	}
 
@@ -544,7 +653,8 @@ export default class ClaudeMcpPlugin extends Plugin {
 	}
 
 	private getAbsolutePath(relativePath: string): string {
-		const basePath = (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+		const basePath =
+			(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
 		return `${basePath}/${relativePath}`;
 	}
 
