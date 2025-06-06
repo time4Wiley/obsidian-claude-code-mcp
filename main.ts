@@ -26,12 +26,14 @@ interface McpResponse {
 export default class ClaudeMcpPlugin extends Plugin {
 	private wss!: WebSocketServer;
 	private lockFilePath = "";
+	private connectedClients: Set<WebSocket> = new Set();
 
 	/* ---------------- core lifecycle ---------------- */
 
 	async onload() {
 		console.log("Claude MCP Plugin loading...");
 		await this.startMcpServer();
+		this.setupWorkspaceListeners();
 		await this.launchClaudeTerminal(); // optional
 		new Notice(
 			"Claude MCP stub running. Open a terminal and run `claude`."
@@ -56,16 +58,23 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 		this.wss.on("connection", (sock: WebSocket) => {
 			console.log("Claude client connected via WebSocket");
+			this.connectedClients.add(sock);
+			
 			sock.on("message", (data) => {
 				console.log("Received MCP message:", data.toString());
 				this.handleMcpMessage(sock, data.toString());
 			});
 			sock.on("close", () => {
 				console.log("Claude client disconnected");
+				this.connectedClients.delete(sock);
 			});
 			sock.on("error", (error) => {
 				console.error("WebSocket error:", error);
+				this.connectedClients.delete(sock);
 			});
+			
+			// Send initial file context when Claude connects
+			this.sendCurrentFileContext();
 		});
 
 		this.wss.on("error", (error) => {
@@ -482,6 +491,61 @@ export default class ClaudeMcpPlugin extends Plugin {
 				},
 			});
 		}
+	}
+
+	/* ---------------- workspace event handling ---------------- */
+
+	private setupWorkspaceListeners() {
+		// Listen for active file changes
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", () => {
+				this.sendCurrentFileContext();
+			})
+		);
+
+		// Listen for file opens
+		this.registerEvent(
+			this.app.workspace.on("file-open", () => {
+				this.sendCurrentFileContext();
+			})
+		);
+	}
+
+	private sendCurrentFileContext() {
+		if (this.connectedClients.size === 0) return;
+
+		const activeFile = this.app.workspace.getActiveFile();
+		const message = {
+			jsonrpc: "2.0",
+			method: "selection_changed",
+			params: {
+				text: "", // No text selected initially
+				filePath: activeFile ? activeFile.path : null,
+				fileUrl: activeFile ? `file://${this.getAbsolutePath(activeFile.path)}` : null,
+				selection: {
+					start: { line: 0, character: 0 },
+					end: { line: 0, character: 0 },
+					isEmpty: true
+				}
+			}
+		};
+
+		console.log("Sending selection_changed:", message);
+		this.broadcastToClients(message);
+	}
+
+	private broadcastToClients(message: any) {
+		const messageStr = JSON.stringify(message);
+		for (const client of this.connectedClients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(messageStr);
+			}
+		}
+	}
+
+	private getAbsolutePath(relativePath: string): string {
+		const basePath = (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+		return `${basePath}/${relativePath}`;
 	}
 
 	/* ---------------- utility methods ---------------- */
