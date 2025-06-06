@@ -31,7 +31,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 	/* ---------------- core lifecycle ---------------- */
 
 	async onload() {
-		console.log("Claude MCP Plugin loading...");
 		await this.startMcpServer();
 		this.setupWorkspaceListeners();
 		await this.launchClaudeTerminal(); // optional
@@ -50,27 +49,21 @@ export default class ClaudeMcpPlugin extends Plugin {
 		// 0 = choose a random free port
 		this.wss = new WebSocketServer({ port: 0 });
 
-		console.log("WSS", this.wss.address());
 
 		// address() is cast-safe once server is listening
 		const port = (this.wss.address() as any).port as number;
-		console.log("MCP WebSocket server started on localhost:", port);
 
 		this.wss.on("connection", (sock: WebSocket) => {
-			console.log("Claude client connected via WebSocket");
 			this.connectedClients.add(sock);
 
 			sock.on("message", (data) => {
-				console.log("Received MCP message:", data.toString());
 				this.handleMcpMessage(sock, data.toString());
 			});
 			sock.on("close", () => {
-				console.log("Claude client disconnected");
 				this.connectedClients.delete(sock);
 			});
 			sock.on("error", (error) => {
-				console.error("WebSocket error:", error);
-				this.connectedClients.delete(sock);
+					this.connectedClients.delete(sock);
 			});
 
 			// Send initial file context when Claude connects
@@ -78,8 +71,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 		});
 
 		this.wss.on("error", (error) => {
-			console.error("WebSocket server error:", error);
-		});
+			});
 
 		// Write the discovery lock-file Claude looks for
 		const ideDir = path.join(
@@ -104,11 +96,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		process.env.CLAUDE_CODE_SSE_PORT = port.toString();
 		process.env.ENABLE_IDE_INTEGRATION = "true";
 
-		console.log("Lock file written:", this.lockFilePath, lockFileContent);
-		console.log("Environment variables set:", {
-			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT,
-			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION,
-		});
 	}
 
 	private stopMcpServer() {
@@ -183,10 +170,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		try {
 			const { protocolVersion, capabilities, clientInfo } =
 				req.params || {};
-			console.log("Initializing MCP connection:", {
-				protocolVersion,
-				clientInfo,
-			});
 
 			// Respond with server capabilities
 			reply({
@@ -227,7 +210,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		req: McpRequest,
 		reply: (msg: any) => void
 	) {
-		console.log("Client initialized - sending workspace context");
 		// No response needed for notifications
 	}
 
@@ -236,7 +218,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		reply: (msg: any) => void
 	) {
 		const { pid } = req.params || {};
-		console.log("IDE connected with PID:", pid);
 		// No response needed for notifications
 	}
 
@@ -266,14 +247,12 @@ export default class ClaudeMcpPlugin extends Plugin {
 				},
 			];
 
-			console.log("Sending tools list:", tools);
 			reply({
 				result: {
 					tools: tools,
 				},
 			});
 		} catch (error) {
-			console.error("Failed to list tools:", error);
 			reply({
 				error: {
 					code: -32603,
@@ -306,7 +285,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 	private async handleToolCall(req: McpRequest, reply: (msg: any) => void) {
 		try {
 			const { name, arguments: args } = req.params || {};
-			console.log("Tool call:", name, args);
 
 			switch (name) {
 				case "get_current_file":
@@ -529,25 +507,8 @@ export default class ClaudeMcpPlugin extends Plugin {
 			})
 		);
 
-		// Listen for editor changes (cursor position, selection) - multiple event types
-		this.registerEvent(
-			this.app.workspace.on("editor-change", (editor) => {
-				console.log("editor-change event fired");
-				this.sendSelectionContext(editor);
-			})
-		);
-
-		// Also try these alternative events
-		this.registerEvent(
-			this.app.workspace.on("active-leaf-change", () => {
-				console.log("active-leaf-change - checking for selection");
-				this.checkAndSendSelection();
-			})
-		);
-
-		// Listen for DOM selection changes
+		// Listen for DOM selection changes (replaces editor-change polling)
 		this.registerDomEvent(document, 'selectionchange', () => {
-			console.log("selectionchange event fired");
 			this.checkAndSendSelection();
 		});
 	}
@@ -558,7 +519,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		const editor = (view as any)?.editor;
 
 		if (editor) {
-			console.log("Found editor, sending selection context");
 			this.sendSelectionContext(editor);
 		}
 	}
@@ -594,7 +554,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 				},
 			};
 
-			console.log("Sending basic selection_changed:", message);
 			this.broadcastToClients(message);
 		}
 	}
@@ -639,7 +598,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 			},
 		};
 
-		console.log("Sending detailed selection_changed:", message);
 		this.broadcastToClients(message);
 	}
 
