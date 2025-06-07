@@ -10,7 +10,7 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = process.argv[2] === "production";
 
-const context = await esbuild.context({
+const buildOptions = {
 	banner: {
 		js: banner,
 	},
@@ -30,9 +30,11 @@ const context = await esbuild.context({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		"node-pty",
 		...builtins,
 	],
+	loader: {
+		".py": "text", // Bundle Python scripts as text
+	},
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
@@ -42,11 +44,17 @@ const context = await esbuild.context({
 	minify: false,
 	platform: "node",
 	conditions: ["node"],
-});
+};
 
-if (prod) {
-	await context.rebuild();
-	process.exit(0);
-} else {
-	await context.watch();
+try {
+	if (prod) {
+		await esbuild.build(buildOptions);
+	} else {
+		const ctx = await esbuild.context(buildOptions);
+		await ctx.watch();
+		console.log("👀 Watching for changes...");
+	}
+} catch (error) {
+	console.error("Build failed:", error);
+	process.exit(1);
 }
