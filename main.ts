@@ -11,20 +11,25 @@ import { McpHandlers } from "./src/mcp/handlers";
 import { WorkspaceManager } from "./src/obsidian/workspace-manager";
 import { McpRequest } from "./src/mcp/types";
 import { ClaudeTerminalView, TERMINAL_VIEW_TYPE } from "./src/terminal/terminal-view";
+import { ClaudeCodeSettings, DEFAULT_SETTINGS, ClaudeCodeSettingTab } from "./src/settings";
 import claudeLogo from "./assets/claude-logo.png";
 
 export default class ClaudeMcpPlugin extends Plugin {
 	private mcpServer!: McpServer;
 	private mcpHandlers!: McpHandlers;
 	private workspaceManager!: WorkspaceManager;
+	public settings!: ClaudeCodeSettings;
 
 	/* ---------------- core lifecycle ---------------- */
 
 	async onload() {
+		// Load settings
+		await this.loadSettings();
+
 		// Register terminal view
 		this.registerView(
 			TERMINAL_VIEW_TYPE,
-			(leaf) => new ClaudeTerminalView(leaf)
+			(leaf) => new ClaudeTerminalView(leaf, this)
 		);
 
 		// Add ribbon button for terminal toggle
@@ -33,6 +38,9 @@ export default class ClaudeMcpPlugin extends Plugin {
 		});
 		// Replace the default icon with Claude logo
 		ribbonButton.innerHTML = `<img src="${claudeLogo}" style="width: 16px; height: 16px;" alt="Claude" />`;
+
+		// Add settings tab
+		this.addSettingTab(new ClaudeCodeSettingTab(this.app, this));
 
 		// Initialize components
 		this.mcpHandlers = new McpHandlers(this.app);
@@ -110,5 +118,13 @@ export default class ClaudeMcpPlugin extends Plugin {
 			console.error("[Terminal] Failed to toggle terminal:", error);
 			new Notice("Failed to toggle Claude Terminal");
 		}
+	}
+
+	async loadSettings() {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings() {
+		await this.saveData(this.settings);
 	}
 }
