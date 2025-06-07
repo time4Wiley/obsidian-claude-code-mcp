@@ -3,21 +3,31 @@ import { WebSocket } from "ws";
 import { McpRequest, McpReplyFunction } from "./types";
 import { FileTools } from "../tools/file-tools";
 import { WorkspaceTools } from "../tools/workspace-tools";
+import { WorkspaceManager } from "../obsidian/workspace-manager";
 
 export class McpHandlers {
 	private fileTools: FileTools;
 	private workspaceTools: WorkspaceTools;
+	private workspaceManager?: WorkspaceManager;
 
-	constructor(private app: App) {
+	constructor(private app: App, workspaceManager?: WorkspaceManager) {
 		this.fileTools = new FileTools(app);
 		this.workspaceTools = new WorkspaceTools(app);
+		this.workspaceManager = workspaceManager;
 	}
 
 	async handleRequest(sock: WebSocket, req: McpRequest): Promise<void> {
 		console.debug(`[MCP] Handling request: ${req.method}`, req.params);
 		const reply: McpReplyFunction = (msg) => {
-			const response = JSON.stringify({ jsonrpc: "2.0", id: req.id, ...msg });
-			console.debug(`[MCP] Sending response for ${req.method}:`, response);
+			const response = JSON.stringify({
+				jsonrpc: "2.0",
+				id: req.id,
+				...msg,
+			});
+			console.debug(
+				`[MCP] Sending response for ${req.method}:`,
+				response
+			);
 			sock.send(response);
 		};
 
@@ -69,7 +79,10 @@ export class McpHandlers {
 		}
 	}
 
-	private async handleInitialize(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	private async handleInitialize(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		try {
 			const { protocolVersion, capabilities, clientInfo } =
 				req.params || {};
@@ -109,16 +122,30 @@ export class McpHandlers {
 		}
 	}
 
-	private async handleInitialized(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	private async handleInitialized(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		// No response needed for notifications
+		// Send initial file context when Claude connects
+		setTimeout(() => {
+			console.debug("[MCP] Sending initial file context");
+			this.workspaceManager?.sendInitialContext();
+		}, 200);
 	}
 
-	private async handleIdeConnected(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	private async handleIdeConnected(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		const { pid } = req.params || {};
 		// No response needed for notifications
 	}
 
-	private async handleToolsList(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	private async handleToolsList(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		try {
 			const tools = this.workspaceTools.getToolDefinitions();
 			reply({
@@ -136,7 +163,10 @@ export class McpHandlers {
 		}
 	}
 
-	private async handlePromptsList(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	private async handlePromptsList(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		try {
 			reply({
 				result: {

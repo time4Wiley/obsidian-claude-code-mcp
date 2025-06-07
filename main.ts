@@ -55,18 +55,19 @@ export default class ClaudeMcpPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new ClaudeCodeSettingTab(this.app, this));
 
-		// Initialize components
-		this.mcpHandlers = new McpHandlers(this.app);
+		// Initialize workspace manager first
+		this.workspaceManager = new WorkspaceManager(this.app, this, {
+			onSelectionChange: (notification) => {
+				this.mcpServer?.broadcast(notification);
+			},
+		});
+
+		// Initialize components with workspace manager
+		this.mcpHandlers = new McpHandlers(this.app, this.workspaceManager);
 
 		this.mcpServer = new McpServer({
 			onMessage: (ws: WebSocket, req: McpRequest) => {
 				this.mcpHandlers.handleRequest(ws, req);
-			},
-		});
-
-		this.workspaceManager = new WorkspaceManager(this.app, this, {
-			onSelectionChange: (notification) => {
-				this.mcpServer?.broadcast(notification);
 			},
 		});
 
