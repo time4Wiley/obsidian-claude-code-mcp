@@ -1,8 +1,39 @@
-/*
+/* Claude Terminal Styles */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.claude-terminal-container {
+	background-color: #1e1e1e;
+	border-radius: 4px;
+	overflow: hidden;
+	height: 100%;
+	width: 100%;
+}
 
-If your plugin does not need CSS, delete this file.
+.claude-terminal-container .xterm {
+	height: 100% !important;
+}
 
-*/
+.claude-terminal-container .xterm-viewport {
+	background-color: transparent !important;
+}
+
+.claude-terminal-container .xterm-screen {
+	background-color: transparent !important;
+}
+
+/* Terminal scrollbar styling */
+.claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar {
+	width: 8px;
+}
+
+.claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar-track {
+	background: #2d2d2d;
+}
+
+.claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+	background: #555;
+	border-radius: 4px;
+}
+
+.claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+	background: #777;
+}

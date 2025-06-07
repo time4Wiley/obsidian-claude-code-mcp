@@ -4,7 +4,13 @@
       "Bash(sed:*)",
       "Bash(cat:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(npm run tsc:*)",
+      "Bash(tsc --noEmit --skipLibCheck)",
+      "Bash(rm:*)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:xterm-pty.netlify.app)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

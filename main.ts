@@ -10,6 +10,7 @@ import { McpServer } from "./src/mcp/server";
 import { McpHandlers } from "./src/mcp/handlers";
 import { WorkspaceManager } from "./src/obsidian/workspace-manager";
 import { McpRequest } from "./src/mcp/types";
+import { ClaudeTerminalView, TERMINAL_VIEW_TYPE } from "./src/terminal/terminal-view";
 
 export default class ClaudeMcpPlugin extends Plugin {
 	private mcpServer!: McpServer;
@@ -19,6 +20,12 @@ export default class ClaudeMcpPlugin extends Plugin {
 	/* ---------------- core lifecycle ---------------- */
 
 	async onload() {
+		// Register terminal view
+		this.registerView(
+			TERMINAL_VIEW_TYPE,
+			(leaf) => new ClaudeTerminalView(leaf)
+		);
+
 		// Initialize components
 		this.mcpHandlers = new McpHandlers(this.app);
 		
@@ -52,10 +59,20 @@ export default class ClaudeMcpPlugin extends Plugin {
 		this.mcpServer.updateWorkspaceFolders(basePath);
 		
 		this.workspaceManager.setupListeners();
-		await this.launchClaudeTerminal(); // optional
+
+		// Register commands
+		this.addCommand({
+			id: "open-claude-terminal",
+			name: "Open Claude Terminal",
+			callback: () => this.openClaudeTerminal(),
+			hotkeys: [{ modifiers: ["Ctrl"], key: "`" }],
+		});
+
+		// Auto-launch terminal
+		await this.openClaudeTerminal();
 
 		new Notice(
-			"Claude MCP stub running. Open a terminal and run `claude`."
+			"Claude MCP running with integrated terminal."
 		);
 	}
 
@@ -63,17 +80,26 @@ export default class ClaudeMcpPlugin extends Plugin {
 		this.mcpServer?.stop();
 	}
 
-	/* ---------------- optional: spawn Claude in terminal pane ---- */
+	/* ---------------- terminal management ---- */
 
-	private async launchClaudeTerminal() {
+	private async openClaudeTerminal(): Promise<void> {
 		try {
-			const leaf: WorkspaceLeaf = this.app.workspace.getLeaf("split");
+			// Check if terminal is already open
+			const existingLeaf = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
+			if (existingLeaf) {
+				this.app.workspace.revealLeaf(existingLeaf);
+				(existingLeaf.view as ClaudeTerminalView).focusTerminal();
+				return;
+			}
+
+			// Create new terminal
+			const leaf = this.app.workspace.getLeaf("split");
 			await leaf.setViewState({
-				type: "terminal-view", // provided by your terminal plugin
-				state: { cmd: "claude", args: [] }, // CLI must be in PATH
+				type: TERMINAL_VIEW_TYPE,
 			});
-		} catch {
-			// terminal plugin not installed – silently ignore
+			this.app.workspace.revealLeaf(leaf);
+		} catch (error) {
+			console.error("[Terminal] Failed to open terminal:", error);
 		}
 	}
 }
