@@ -8,7 +8,7 @@ This is an Obsidian plugin that implements an MCP (Model Context Protocol) serve
 
 ## Development Commands
 
-- `bun install` - Install dependencies
+- `bun install` - Install dependencies  
 - `bun run dev` - Start compilation in watch mode (outputs main.js from main.ts)
 - `bun run build` - Type check and build for production
 - `bun run version patch|minor|major` - Bump version in manifest.json, package.json, and versions.json
@@ -16,11 +16,28 @@ This is an Obsidian plugin that implements an MCP (Model Context Protocol) serve
 
 ## Architecture
 
-### Core Components
+### Modular Structure
 
-- **main.ts** - Entry point containing `ClaudeMcpPlugin` class with MCP server implementation
-- **manifest.json** - Plugin metadata (ID: claude-code-terminal, name: Claude Code Terminal)
-- **esbuild.config.mjs** - Bundles TypeScript to main.js with watch mode for development
+The codebase has been refactored into a clean modular architecture:
+
+- **main.ts** (77 lines) - Thin orchestration layer that initializes and connects all components
+- **src/mcp/** - MCP protocol implementation
+  - **types.ts** - All MCP interfaces and type definitions
+  - **server.ts** - WebSocket server management and client connection handling
+  - **handlers.ts** - MCP request/response routing and processing
+- **src/obsidian/** - Obsidian integration layer  
+  - **workspace-manager.ts** - File context and selection tracking using DOM events
+  - **utils.ts** - Path normalization and utility functions
+- **src/tools/** - MCP tool implementations
+  - **file-tools.ts** - File operations (read, write, list, current file)
+  - **workspace-tools.ts** - Workspace info and tool definitions
+
+### Core Design Patterns
+
+- **Dependency Injection**: Components receive their dependencies through constructors
+- **Event-Driven**: Uses DOM `selectionchange` events instead of polling for selection tracking
+- **Separation of Concerns**: Each module has a single, well-defined responsibility
+- **Plugin Integration**: Uses Obsidian's `registerEvent` and `registerDomEvent` for proper cleanup
 
 ### MCP Server Implementation
 
@@ -50,8 +67,7 @@ The plugin implements a WebSocket-based MCP server that:
 
 ### Setup
 ```bash
-bun install
-npm i ws @types/ws @types/node  # Additional dependencies for MCP server
+bun install  # Installs all dependencies including ws and @types/ws
 ```
 
 ### Testing
@@ -90,20 +106,22 @@ interface McpResponse {
 ### Critical Implementation Notes
 
 - **Lock File Naming**: MUST be named `[port].lock` not `[pid].lock`
-- **Discovery**: Claude Code CLI discovers IDEs by scanning `~/.claude/ide/` directory
+- **Discovery**: Claude Code CLI discovers IDEs by scanning `~/.claude/ide/` directory  
 - **WebSocket Binding**: Server must bind to localhost for security
+- **Event Handling**: Uses DOM `selectionchange` event instead of polling for better performance
+- **Component Lifecycle**: All event listeners are properly cleaned up via Obsidian's registration system
 
 ### File Path Handling
 
-- All file operations use vault-relative paths
+- All file operations use vault-relative paths via `normalizePath()` utility
 - Absolute paths are converted using `app.vault.adapter.getBasePath()`
-- Path validation prevents directory traversal attacks
+- Path validation prevents directory traversal attacks in `src/obsidian/utils.ts`
 
 ### Error Handling
 
-- WebSocket connection errors are logged but don't crash plugin
-- Invalid MCP requests return proper JSON-RPC error responses
-- File system errors are caught and returned as MCP errors
+- WebSocket connection errors are handled gracefully in `McpServer`
+- Invalid MCP requests return proper JSON-RPC error responses via `McpHandlers`
+- File system errors are caught and returned as MCP errors in `FileTools`
 
 ## Release Process
 

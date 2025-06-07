@@ -3,7 +3,8 @@
     "allow": [
       "Bash(sed:*)",
       "Bash(cat:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
