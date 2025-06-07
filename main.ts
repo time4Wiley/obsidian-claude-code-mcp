@@ -48,15 +48,9 @@ export default class ClaudeMcpPlugin extends Plugin {
 		);
 
 		// Add ribbon button for terminal toggle
-		const ribbonButton = this.addRibbonIcon(
-			"cpu",
-			"Toggle Claude Terminal",
-			() => {
-				this.toggleClaudeTerminal();
-			}
-		);
-		// Replace the default icon with Claude logo
-		ribbonButton.innerHTML = `<img src="${claudeLogo}" style="width: 16px; height: 16px;" alt="Claude" />`;
+		this.addRibbonIcon("claude-logo", "Toggle Claude Terminal", () => {
+			this.toggleClaudeTerminal();
+		});
 
 		// Add settings tab
 		this.addSettingTab(new ClaudeCodeSettingTab(this.app, this));
@@ -67,10 +61,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 		this.mcpServer = new McpServer({
 			onMessage: (ws: WebSocket, req: McpRequest) => {
 				this.mcpHandlers.handleRequest(ws, req);
-			},
-			onConnection: (ws: WebSocket) => {
-				// Send initial file context when Claude connects
-				this.workspaceManager?.sendInitialContext();
 			},
 		});
 
@@ -100,9 +90,6 @@ export default class ClaudeMcpPlugin extends Plugin {
 			hotkeys: [{ modifiers: ["Ctrl"], key: "`" }],
 		});
 
-		// Auto-launch terminal
-		await this.toggleClaudeTerminal();
-
 		new Notice("Claude MCP running with integrated terminal.");
 	}
 
@@ -118,17 +105,44 @@ export default class ClaudeMcpPlugin extends Plugin {
 			const existingLeaf =
 				this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
 			if (existingLeaf) {
-				// Terminal exists - close it
-				existingLeaf.detach();
-				return;
+				// Check if the terminal leaf is currently active
+				const isActive = this.app.workspace.activeLeaf === existingLeaf;
+				if (isActive) {
+					// Terminal is active - close it
+					existingLeaf.detach();
+					return;
+				} else {
+					// Terminal exists but isn't active - focus it
+					this.app.workspace.revealLeaf(existingLeaf);
+					setTimeout(() => {
+						const terminalView =
+							existingLeaf.view as ClaudeTerminalView;
+						if (
+							terminalView &&
+							typeof terminalView.focusTerminal === "function"
+						) {
+							terminalView.focusTerminal();
+						}
+					}, 50);
+					return;
+				}
 			}
 
 			// Create new terminal
 			const leaf = this.app.workspace.getLeaf("split");
-			await leaf.setViewState({
-				type: TERMINAL_VIEW_TYPE,
-			});
+			await leaf.setViewState({ type: TERMINAL_VIEW_TYPE });
 			this.app.workspace.revealLeaf(leaf);
+
+			// Focus the terminal after a brief delay to ensure it's ready
+			setTimeout(() => {
+				const terminalView = leaf.view as ClaudeTerminalView;
+				if (
+					terminalView &&
+					typeof terminalView.focusTerminal === "function"
+				) {
+					terminalView.focusTerminal();
+				}
+			}, 150);
 		} catch (error) {
 			console.error("[Terminal] Failed to toggle terminal:", error);
 			new Notice("Failed to toggle Claude Terminal");
