@@ -44,9 +44,11 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 		// Start services
 		const port = await this.mcpServer.start();
+		console.debug(`[MCP] Server started on port ${port}`);
 		
 		// Update lock file with workspace path
 		const basePath = (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+		console.debug(`[MCP] Vault base path: ${basePath}`);
 		this.mcpServer.updateWorkspaceFolders(basePath);
 		
 		this.workspaceManager.setupListeners();

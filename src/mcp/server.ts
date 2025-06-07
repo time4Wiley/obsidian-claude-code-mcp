@@ -27,6 +27,7 @@ export class McpServer {
 		const port = (this.wss.address() as any).port as number;
 
 		this.wss.on("connection", (sock: WebSocket) => {
+			console.debug("[MCP] Client connected");
 			this.connectedClients.add(sock);
 
 			sock.on("message", (data) => {
@@ -34,11 +35,13 @@ export class McpServer {
 			});
 
 			sock.on("close", () => {
+				console.debug("[MCP] Client disconnected");
 				this.connectedClients.delete(sock);
 				this.config.onDisconnection?.(sock);
 			});
 
 			sock.on("error", (error) => {
+				console.debug("[MCP] Client error:", error);
 				this.connectedClients.delete(sock);
 			});
 
@@ -68,6 +71,7 @@ export class McpServer {
 
 	broadcast(message: McpNotification): void {
 		const messageStr = JSON.stringify(message);
+		console.debug("[MCP] Broadcasting message:", messageStr);
 		for (const client of this.connectedClients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(messageStr);
@@ -108,10 +112,12 @@ export class McpServer {
 	}
 
 	private handleMessage(sock: WebSocket, raw: string): void {
+		console.debug("[MCP] Received message:", raw);
 		let req: McpRequest;
 		try {
 			req = JSON.parse(raw);
 		} catch {
+			console.debug("[MCP] Invalid JSON received:", raw);
 			return; // ignore invalid JSON
 		}
 

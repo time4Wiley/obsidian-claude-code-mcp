@@ -14,8 +14,12 @@ export class McpHandlers {
 	}
 
 	async handleRequest(sock: WebSocket, req: McpRequest): Promise<void> {
-		const reply: McpReplyFunction = (msg) =>
-			sock.send(JSON.stringify({ jsonrpc: "2.0", id: req.id, ...msg }));
+		console.debug(`[MCP] Handling request: ${req.method}`, req.params);
+		const reply: McpReplyFunction = (msg) => {
+			const response = JSON.stringify({ jsonrpc: "2.0", id: req.id, ...msg });
+			console.debug(`[MCP] Sending response for ${req.method}:`, response);
+			sock.send(response);
+		};
 
 		switch (req.method) {
 			case "initialize":
@@ -58,6 +62,7 @@ export class McpHandlers {
 				return this.workspaceTools.handleToolCall(req, reply);
 
 			default:
+				console.debug(`[MCP] Unknown method: ${req.method}`);
 				return reply({
 					error: { code: -32601, message: "method not implemented" },
 				});
