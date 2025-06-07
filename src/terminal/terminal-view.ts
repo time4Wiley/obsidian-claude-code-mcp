@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, App } from "obsidian";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { spawn, ChildProcess } from "child_process";
@@ -14,9 +14,11 @@ export class ClaudeTerminalView extends ItemView {
 	private pseudoterminal: Pseudoterminal | null = null;
 	private pythonManager = new PythonManager();
 	private isDestroyed = false;
+	public app: App;
 
 	constructor(leaf: WorkspaceLeaf) {
 		super(leaf);
+		this.app = this.leaf.view.app;
 		this.terminal = new Terminal({
 			cursorBlink: true,
 			fontSize: 14,
@@ -61,10 +63,10 @@ export class ClaudeTerminalView extends ItemView {
 		// Open terminal in DOM
 		this.terminal.open(terminalEl);
 
-		// Initialize Python detection
+		// Initialize Python detection but defer shell start
 		await this.pythonManager.initialize();
 
-		// Set up shell process
+		// Set up shell process - now includes environment setup
 		await this.startShell();
 
 		// Set up terminal resizing
@@ -115,6 +117,9 @@ export class ClaudeTerminalView extends ItemView {
 
 	private async startShell(): Promise<void> {
 		try {
+			// Get vault root directory for PWD
+			const vaultPath = (this.app.vault.adapter as any).basePath || (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+			
 			// Determine shell command based on platform
 			const isWindows = process.platform === "win32";
 			const shell = isWindows
@@ -123,12 +128,13 @@ export class ClaudeTerminalView extends ItemView {
 			const args = isWindows ? [] : ["-l"];
 
 			console.debug(`[Terminal] Starting shell: ${shell}`, args);
+			console.debug(`[Terminal] Working directory: ${vaultPath}`);
 
 			// Try Python PTY approach first
 			if (this.pythonManager.isAvailable() && !isWindows) {
 				try {
 					console.debug("[Terminal] Using Python PTY approach");
-					await this.startPythonPTY(shell, args);
+					await this.startPythonPTY(shell, args, vaultPath);
 					return;
 				} catch (error) {
 					console.warn("[Terminal] Python PTY failed, falling back to child_process:", error);
@@ -144,7 +150,7 @@ export class ClaudeTerminalView extends ItemView {
 			}
 
 			// Fallback to child_process approach
-			await this.startChildProcessFallback(shell, args);
+			await this.startChildProcessFallback(shell, args, vaultPath);
 
 		} catch (error: any) {
 			console.error("[Terminal] Failed to start shell:", error);
@@ -152,7 +158,7 @@ export class ClaudeTerminalView extends ItemView {
 		}
 	}
 
-	private async startPythonPTY(shell: string, args: string[]): Promise<void> {
+	private async startPythonPTY(shell: string, args: string[], vaultPath: string): Promise<void> {
 		const pythonExecutable = this.pythonManager.getExecutable();
 		if (!pythonExecutable) {
 			throw new Error("Python executable not available");
@@ -161,9 +167,10 @@ export class ClaudeTerminalView extends ItemView {
 		this.pseudoterminal = new UnixPseudoterminal({
 			executable: shell,
 			args,
-			cwd: process.cwd(),
+			cwd: vaultPath,
 			pythonExecutable,
-			terminal: "xterm-256color"
+			terminal: "xterm-256color",
+			env: this.getTerminalEnv()
 		});
 
 		// Pipe pseudoterminal to xterm
@@ -178,14 +185,18 @@ export class ClaudeTerminalView extends ItemView {
 		}).catch((error: unknown) => {
 			console.error("[Terminal] PTY error:", error);
 		});
+
+		// Auto-launch claude command after a brief delay
+		setTimeout(() => this.launchClaude(), 1000);
 	}
 
-	private async startChildProcessFallback(shell: string, args: string[]): Promise<void> {
+	private async startChildProcessFallback(shell: string, args: string[], vaultPath: string): Promise<void> {
 		this.pseudoterminal = new ChildProcessPseudoterminal({
 			executable: shell,
 			args,
-			cwd: process.cwd(),
-			terminal: "xterm-256color"
+			cwd: vaultPath,
+			terminal: "xterm-256color",
+			env: this.getTerminalEnv()
 		});
 
 		// Pipe pseudoterminal to xterm
@@ -200,12 +211,31 @@ export class ClaudeTerminalView extends ItemView {
 		}).catch((error: unknown) => {
 			console.error("[Terminal] Child process error:", error);
 		});
+
+		// Auto-launch claude command after a brief delay
+		setTimeout(() => this.launchClaude(), 1000);
 	}
 
-	private launchClaude(): void {
-		if (!this.isDestroyed) {
+	private getTerminalEnv(): NodeJS.ProcessEnv {
+		return {
+			...process.env,
+			// Pass through MCP environment variables
+			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT || '',
+			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION || 'true',
+		};
+	}
+
+	private async launchClaude(): Promise<void> {
+		if (!this.isDestroyed && this.pseudoterminal) {
 			console.debug("[Terminal] Auto-launching Claude Code");
-			this.terminal.write("claude\r");
+			try {
+				const shell = await this.pseudoterminal.shell;
+				if (shell && shell.stdin) {
+					shell.stdin.write("claude\n");
+				}
+			} catch (error) {
+				console.warn("[Terminal] Failed to auto-launch claude:", error);
+			}
 		}
 	}
 

@@ -34,6 +34,7 @@ const buildOptions = {
 	],
 	loader: {
 		".py": "text", // Bundle Python scripts as text
+		".png": "dataurl", // Bundle PNG files as data URLs
 	},
 	format: "cjs",
 	target: "es2018",

@@ -17,6 +17,7 @@ export interface PseudoterminalArgs {
   cwd?: string;
   pythonExecutable?: string;
   terminal?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
 async function writePromise(stream: Writable, data: string): Promise<void> {
@@ -49,6 +50,7 @@ export class UnixPseudoterminal implements Pseudoterminal {
     
     const env: NodeJS.ProcessEnv = {
       ...process.env,
+      ...args.env,
       PYTHONIOENCODING: "utf-8",
     };
     
@@ -159,6 +161,7 @@ export class ChildProcessPseudoterminal implements Pseudoterminal {
       cwd: args.cwd,
       env: {
         ...process.env,
+        ...args.env,
         TERM: args.terminal || "xterm-256color",
       },
       stdio: ["pipe", "pipe", "pipe"],

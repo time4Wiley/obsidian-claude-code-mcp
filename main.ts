@@ -11,6 +11,7 @@ import { McpHandlers } from "./src/mcp/handlers";
 import { WorkspaceManager } from "./src/obsidian/workspace-manager";
 import { McpRequest } from "./src/mcp/types";
 import { ClaudeTerminalView, TERMINAL_VIEW_TYPE } from "./src/terminal/terminal-view";
+import claudeLogo from "./assets/claude-logo.png";
 
 export default class ClaudeMcpPlugin extends Plugin {
 	private mcpServer!: McpServer;
@@ -25,6 +26,13 @@ export default class ClaudeMcpPlugin extends Plugin {
 			TERMINAL_VIEW_TYPE,
 			(leaf) => new ClaudeTerminalView(leaf)
 		);
+
+		// Add ribbon button for terminal toggle
+		const ribbonButton = this.addRibbonIcon("cpu", "Toggle Claude Terminal", () => {
+			this.toggleClaudeTerminal();
+		});
+		// Replace the default icon with Claude logo
+		ribbonButton.innerHTML = `<img src="${claudeLogo}" style="width: 16px; height: 16px;" alt="Claude" />`;
 
 		// Initialize components
 		this.mcpHandlers = new McpHandlers(this.app);
@@ -62,14 +70,14 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 		// Register commands
 		this.addCommand({
-			id: "open-claude-terminal",
-			name: "Open Claude Terminal",
-			callback: () => this.openClaudeTerminal(),
+			id: "toggle-claude-terminal",
+			name: "Toggle Claude Terminal",
+			callback: () => this.toggleClaudeTerminal(),
 			hotkeys: [{ modifiers: ["Ctrl"], key: "`" }],
 		});
 
 		// Auto-launch terminal
-		await this.openClaudeTerminal();
+		await this.toggleClaudeTerminal();
 
 		new Notice(
 			"Claude MCP running with integrated terminal."
@@ -82,13 +90,13 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 	/* ---------------- terminal management ---- */
 
-	private async openClaudeTerminal(): Promise<void> {
+	private async toggleClaudeTerminal(): Promise<void> {
 		try {
 			// Check if terminal is already open
 			const existingLeaf = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
 			if (existingLeaf) {
-				this.app.workspace.revealLeaf(existingLeaf);
-				(existingLeaf.view as ClaudeTerminalView).focusTerminal();
+				// Terminal exists - close it
+				existingLeaf.detach();
 				return;
 			}
 
@@ -99,7 +107,8 @@ export default class ClaudeMcpPlugin extends Plugin {
 			});
 			this.app.workspace.revealLeaf(leaf);
 		} catch (error) {
-			console.error("[Terminal] Failed to open terminal:", error);
+			console.error("[Terminal] Failed to toggle terminal:", error);
+			new Notice("Failed to toggle Claude Terminal");
 		}
 	}
 }
