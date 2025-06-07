@@ -4,14 +4,21 @@
  * 1. `npm i ws node-pty @types/ws @types/node --save`
  * 2. Compile with the normal Obsidian plugin build pipeline
  **********************************************************************/
-import { Plugin, Notice, WorkspaceLeaf } from "obsidian";
+import { Plugin, Notice, WorkspaceLeaf, addIcon } from "obsidian";
 import { WebSocket } from "ws";
 import { McpServer } from "./src/mcp/server";
 import { McpHandlers } from "./src/mcp/handlers";
 import { WorkspaceManager } from "./src/obsidian/workspace-manager";
 import { McpRequest } from "./src/mcp/types";
-import { ClaudeTerminalView, TERMINAL_VIEW_TYPE } from "./src/terminal/terminal-view";
-import { ClaudeCodeSettings, DEFAULT_SETTINGS, ClaudeCodeSettingTab } from "./src/settings";
+import {
+	ClaudeTerminalView,
+	TERMINAL_VIEW_TYPE,
+} from "./src/terminal/terminal-view";
+import {
+	ClaudeCodeSettings,
+	DEFAULT_SETTINGS,
+	ClaudeCodeSettingTab,
+} from "./src/settings";
 import claudeLogo from "./assets/claude-logo.png";
 
 export default class ClaudeMcpPlugin extends Plugin {
@@ -26,6 +33,14 @@ export default class ClaudeMcpPlugin extends Plugin {
 		// Load settings
 		await this.loadSettings();
 
+		// Register custom Claude icon
+		addIcon(
+			"claude-logo",
+			`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+				<image href="${claudeLogo}" width="16" height="16" />
+			</svg>`
+		);
+
 		// Register terminal view
 		this.registerView(
 			TERMINAL_VIEW_TYPE,
@@ -33,9 +48,13 @@ export default class ClaudeMcpPlugin extends Plugin {
 		);
 
 		// Add ribbon button for terminal toggle
-		const ribbonButton = this.addRibbonIcon("cpu", "Toggle Claude Terminal", () => {
-			this.toggleClaudeTerminal();
-		});
+		const ribbonButton = this.addRibbonIcon(
+			"cpu",
+			"Toggle Claude Terminal",
+			() => {
+				this.toggleClaudeTerminal();
+			}
+		);
 		// Replace the default icon with Claude logo
 		ribbonButton.innerHTML = `<img src="${claudeLogo}" style="width: 16px; height: 16px;" alt="Claude" />`;
 
@@ -44,7 +63,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 		// Initialize components
 		this.mcpHandlers = new McpHandlers(this.app);
-		
+
 		this.mcpServer = new McpServer({
 			onMessage: (ws: WebSocket, req: McpRequest) => {
 				this.mcpHandlers.handleRequest(ws, req);
@@ -55,25 +74,22 @@ export default class ClaudeMcpPlugin extends Plugin {
 			},
 		});
 
-		this.workspaceManager = new WorkspaceManager(
-			this.app,
-			this,
-			{
-				onSelectionChange: (notification) => {
-					this.mcpServer?.broadcast(notification);
-				},
-			}
-		);
+		this.workspaceManager = new WorkspaceManager(this.app, this, {
+			onSelectionChange: (notification) => {
+				this.mcpServer?.broadcast(notification);
+			},
+		});
 
 		// Start services
 		const port = await this.mcpServer.start();
 		console.debug(`[MCP] Server started on port ${port}`);
-		
+
 		// Update lock file with workspace path
-		const basePath = (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+		const basePath =
+			(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
 		console.debug(`[MCP] Vault base path: ${basePath}`);
 		this.mcpServer.updateWorkspaceFolders(basePath);
-		
+
 		this.workspaceManager.setupListeners();
 
 		// Register commands
@@ -87,9 +103,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 		// Auto-launch terminal
 		await this.toggleClaudeTerminal();
 
-		new Notice(
-			"Claude MCP running with integrated terminal."
-		);
+		new Notice("Claude MCP running with integrated terminal.");
 	}
 
 	onunload() {
@@ -101,7 +115,8 @@ export default class ClaudeMcpPlugin extends Plugin {
 	private async toggleClaudeTerminal(): Promise<void> {
 		try {
 			// Check if terminal is already open
-			const existingLeaf = this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
+			const existingLeaf =
+				this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
 			if (existingLeaf) {
 				// Terminal exists - close it
 				existingLeaf.detach();
@@ -121,7 +136,11 @@ export default class ClaudeMcpPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			await this.loadData()
+		);
 	}
 
 	async saveSettings() {

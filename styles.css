@@ -37,3 +37,9 @@
 .claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
 	background: #777;
 }
+
+/* Hide xterm helpers that are used for IME but shouldn't be visible */
+.claude-terminal-container .xterm-helpers {
+	opacity: 0 !important;
+	pointer-events: none !important;
+}

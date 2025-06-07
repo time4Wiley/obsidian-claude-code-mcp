@@ -2,8 +2,13 @@ import { ItemView, WorkspaceLeaf, Notice, App } from "obsidian";
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { spawn, ChildProcess } from "child_process";
-import { Pseudoterminal, UnixPseudoterminal, ChildProcessPseudoterminal } from "./pseudoterminal";
+import {
+	Pseudoterminal,
+	UnixPseudoterminal,
+	ChildProcessPseudoterminal,
+} from "./pseudoterminal";
 import { PythonManager } from "./python-detection";
+import type ClaudeMcpPlugin from "main";
 
 export const TERMINAL_VIEW_TYPE = "claude-terminal-view";
 
@@ -16,7 +21,7 @@ export class ClaudeTerminalView extends ItemView {
 	private isDestroyed = false;
 	public app: App;
 
-	constructor(leaf: WorkspaceLeaf) {
+	constructor(leaf: WorkspaceLeaf, plugin: ClaudeMcpPlugin) {
 		super(leaf);
 		this.app = this.leaf.view.app;
 		this.terminal = new Terminal({
@@ -43,7 +48,7 @@ export class ClaudeTerminalView extends ItemView {
 	}
 
 	getIcon(): string {
-		return "terminal";
+		return "claude-logo";
 	}
 
 	async onOpen(): Promise<void> {
@@ -72,9 +77,11 @@ export class ClaudeTerminalView extends ItemView {
 		// Set up terminal resizing
 		this.terminal.onResize(({ cols, rows }) => {
 			if (this.pseudoterminal?.resize) {
-				this.pseudoterminal.resize(cols, rows).catch((error: unknown) => {
-					console.warn("[Terminal] Resize failed:", error);
-				});
+				this.pseudoterminal
+					.resize(cols, rows)
+					.catch((error: unknown) => {
+						console.warn("[Terminal] Resize failed:", error);
+					});
 			}
 		});
 
@@ -90,7 +97,10 @@ export class ClaudeTerminalView extends ItemView {
 
 		if (this.pseudoterminal) {
 			this.pseudoterminal.kill().catch((error: unknown) => {
-				console.error("[Terminal] Failed to kill pseudoterminal:", error);
+				console.error(
+					"[Terminal] Failed to kill pseudoterminal:",
+					error
+				);
 			});
 			this.pseudoterminal = null;
 		}
@@ -118,8 +128,11 @@ export class ClaudeTerminalView extends ItemView {
 	private async startShell(): Promise<void> {
 		try {
 			// Get vault root directory for PWD
-			const vaultPath = (this.app.vault.adapter as any).basePath || (this.app.vault.adapter as any).getBasePath?.() || process.cwd();
-			
+			const vaultPath =
+				(this.app.vault.adapter as any).basePath ||
+				(this.app.vault.adapter as any).getBasePath?.() ||
+				process.cwd();
+
 			// Determine shell command based on platform
 			const isWindows = process.platform === "win32";
 			const shell = isWindows
@@ -137,28 +150,35 @@ export class ClaudeTerminalView extends ItemView {
 					await this.startPythonPTY(shell, args, vaultPath);
 					return;
 				} catch (error) {
-					console.warn("[Terminal] Python PTY failed, falling back to child_process:", error);
+					console.warn(
+						"[Terminal] Python PTY failed, falling back to child_process:",
+						error
+					);
 					new Notice("Terminal: Python PTY failed, using basic mode");
 				}
 			} else {
 				if (!this.pythonManager.isAvailable()) {
-					console.debug("[Terminal] Python not available, using child_process fallback");
+					console.debug(
+						"[Terminal] Python not available, using child_process fallback"
+					);
 				}
 				if (isWindows) {
-					console.debug("[Terminal] Windows platform, using child_process fallback");
+					console.debug(
+						"[Terminal] Windows platform, using child_process fallback"
+					);
 				}
 			}
-
-			// Fallback to child_process approach
-			await this.startChildProcessFallback(shell, args, vaultPath);
-
 		} catch (error: any) {
 			console.error("[Terminal] Failed to start shell:", error);
 			this.terminal.write(`Failed to start shell: ${error.message}\r\n`);
 		}
 	}
 
-	private async startPythonPTY(shell: string, args: string[], vaultPath: string): Promise<void> {
+	private async startPythonPTY(
+		shell: string,
+		args: string[],
+		vaultPath: string
+	): Promise<void> {
 		const pythonExecutable = this.pythonManager.getExecutable();
 		if (!pythonExecutable) {
 			throw new Error("Python executable not available");
@@ -170,68 +190,60 @@ export class ClaudeTerminalView extends ItemView {
 			cwd: vaultPath,
 			pythonExecutable,
 			terminal: "xterm-256color",
-			env: this.getTerminalEnv()
+			env: this.getTerminalEnv(),
 		});
 
 		// Pipe pseudoterminal to xterm
 		await this.pseudoterminal.pipe(this.terminal);
 
 		// Handle exit
-		this.pseudoterminal.onExit.then((exitCode) => {
-			console.debug(`[Terminal] PTY exited with code ${exitCode}`);
-			if (!this.isDestroyed) {
-				this.terminal.write(`\r\n\r\nShell exited with code ${exitCode}\r\n`);
-			}
-		}).catch((error: unknown) => {
-			console.error("[Terminal] PTY error:", error);
-		});
+		this.pseudoterminal.onExit
+			.then((exitCode) => {
+				console.debug(`[Terminal] PTY exited with code ${exitCode}`);
+				if (!this.isDestroyed) {
+					this.terminal.write(
+						`\r\n\r\nShell exited with code ${exitCode}\r\n`
+					);
+				}
+			})
+			.catch((error: unknown) => {
+				console.error("[Terminal] PTY error:", error);
+			});
 
 		// Auto-launch claude command after a brief delay
-		setTimeout(() => this.launchClaude(), 1000);
-	}
-
-	private async startChildProcessFallback(shell: string, args: string[], vaultPath: string): Promise<void> {
-		this.pseudoterminal = new ChildProcessPseudoterminal({
-			executable: shell,
-			args,
-			cwd: vaultPath,
-			terminal: "xterm-256color",
-			env: this.getTerminalEnv()
-		});
-
-		// Pipe pseudoterminal to xterm
-		await this.pseudoterminal.pipe(this.terminal);
-
-		// Handle exit
-		this.pseudoterminal.onExit.then((exitCode) => {
-			console.debug(`[Terminal] Child process exited with code ${exitCode}`);
-			if (!this.isDestroyed) {
-				this.terminal.write(`\r\n\r\nShell exited with code ${exitCode}\r\n`);
-			}
-		}).catch((error: unknown) => {
-			console.error("[Terminal] Child process error:", error);
-		});
-
-		// Auto-launch claude command after a brief delay
-		setTimeout(() => this.launchClaude(), 1000);
+		setTimeout(() => this.launchClaude(), 100);
 	}
 
 	private getTerminalEnv(): NodeJS.ProcessEnv {
 		return {
 			...process.env,
 			// Pass through MCP environment variables
-			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT || '',
-			ENABLE_IDE_INTEGRATION: process.env.ENABLE_IDE_INTEGRATION || 'true',
+			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT || "",
+			ENABLE_IDE_INTEGRATION:
+				process.env.ENABLE_IDE_INTEGRATION || "true",
+
+			TERM_PROGRAM: "obsidian-claude-terminal", // Identifies this as integrated terminal
+			TERM_PROGRAM_VERSION: "1.0.0",
+			VSCODE_GIT_ASKPASS_NODE: process.env.VSCODE_GIT_ASKPASS_NODE || "", // VSCode compat
+			VSCODE_GIT_ASKPASS_EXTRA_ARGS:
+				process.env.VSCODE_GIT_ASKPASS_EXTRA_ARGS || "",
+
+			// Alternative: Set a specific IDE integration flag
+			CLAUDE_CODE_IDE_INTEGRATION: "obsidian",
+			CLAUDE_CODE_INTEGRATED_TERMINAL: "true",
 		};
 	}
 
 	private async launchClaude(): Promise<void> {
 		if (!this.isDestroyed && this.pseudoterminal) {
-			console.debug("[Terminal] Auto-launching Claude Code");
+			console.debug(
+				"[Terminal] Auto-launching Claude Code with IDE integration"
+			);
 			try {
 				const shell = await this.pseudoterminal.shell;
 				if (shell && shell.stdin) {
-					shell.stdin.write("claude\n");
+					// Launch Claude and automatically connect to IDE
+					shell.stdin.write("claude -c\n");
 				}
 			} catch (error) {
 				console.warn("[Terminal] Failed to auto-launch claude:", error);
