@@ -20,20 +20,16 @@ export class ClaudeTerminalView extends ItemView {
 	private pythonManager = new PythonManager();
 	private isDestroyed = false;
 	public app: App;
+	private plugin: ClaudeMcpPlugin;
 
 	constructor(leaf: WorkspaceLeaf, plugin: ClaudeMcpPlugin) {
 		super(leaf);
+		this.plugin = plugin;
 		this.app = this.leaf.view.app;
 		this.terminal = new Terminal({
 			cursorBlink: true,
 			fontSize: 14,
 			fontFamily: "Monaco, Menlo, 'Ubuntu Mono', monospace",
-			theme: {
-				background: "#1e1e1e",
-				foreground: "#d4d4d4",
-				cursor: "#ffffff",
-				selectionBackground: "#264f78",
-			},
 		});
 		this.fitAddon = new FitAddon();
 		this.terminal.loadAddon(this.fitAddon);
@@ -85,10 +81,20 @@ export class ClaudeTerminalView extends ItemView {
 			}
 		});
 
-		// Fit terminal to container
+		// Fit terminal to container and focus after a brief delay
 		setTimeout(() => {
 			this.fitAddon.fit();
+			this.focusTerminal();
 		}, 100);
+	}
+
+	// Called when the view becomes active/visible
+	onShow(): void {
+		console.debug("[Terminal] Terminal view shown");
+		// Focus the terminal when the view becomes active
+		setTimeout(() => {
+			this.focusTerminal();
+		}, 50);
 	}
 
 	async onClose(): Promise<void> {
@@ -236,24 +242,52 @@ export class ClaudeTerminalView extends ItemView {
 
 	private async launchClaude(): Promise<void> {
 		if (!this.isDestroyed && this.pseudoterminal) {
+			const startupCommand = this.plugin.settings.startupCommand.trim();
+
+			// Skip if no startup command is configured
+			if (!startupCommand) {
+				console.debug(
+					"[Terminal] Startup command is empty, skipping auto-launch"
+				);
+				return;
+			}
+
 			console.debug(
-				"[Terminal] Auto-launching Claude Code with IDE integration"
+				`[Terminal] Auto-launching startup command: ${startupCommand}`
 			);
 			try {
 				const shell = await this.pseudoterminal.shell;
 				if (shell && shell.stdin) {
-					// Launch Claude and automatically connect to IDE
-					shell.stdin.write("claude -c\n");
+					// Launch the configured startup command
+					shell.stdin.write(`${startupCommand}\n`);
 				}
 			} catch (error) {
-				console.warn("[Terminal] Failed to auto-launch claude:", error);
+				console.warn(
+					"[Terminal] Failed to auto-launch startup command:",
+					error
+				);
 			}
 		}
 	}
 
 	public focusTerminal(): void {
 		if (this.terminal && !this.isDestroyed) {
-			this.terminal.focus();
+			// Ensure the terminal is properly loaded and visible
+			if (
+				this.containerEl.isConnected &&
+				this.containerEl.offsetParent !== null
+			) {
+				this.terminal.focus();
+				console.debug("[Terminal] Terminal focused");
+			} else {
+				// Retry focus after a short delay if terminal isn't ready
+				setTimeout(() => {
+					if (this.terminal && !this.isDestroyed) {
+						this.terminal.focus();
+						console.debug("[Terminal] Terminal focused (delayed)");
+					}
+				}, 100);
+			}
 		}
 	}
 }
