@@ -47,6 +47,11 @@ export class WorkspaceManager {
 	}
 
 	private checkAndSendSelection(): void {
+		// Check if the selection is within an editable note view
+		if (!this.isSelectionInEditableNote()) {
+			return;
+		}
+
 		const activeLeaf = this.app.workspace.activeLeaf;
 		const view = activeLeaf?.view;
 		const editor = (view as any)?.editor;
@@ -54,6 +59,55 @@ export class WorkspaceManager {
 		if (editor) {
 			this.sendSelectionContext(editor);
 		}
+	}
+
+	private isSelectionInEditableNote(): boolean {
+		const selection = window.getSelection();
+		if (!selection || selection.rangeCount === 0) {
+			return false;
+		}
+
+		// Get the anchor node of the selection
+		const anchorNode = selection.anchorNode;
+		if (!anchorNode) {
+			return false;
+		}
+
+		// Traverse up the DOM tree to find if we're within an editor
+		let element =
+			anchorNode.nodeType === Node.ELEMENT_NODE
+				? (anchorNode as Element)
+				: anchorNode.parentElement;
+
+		while (element) {
+			// Check for Obsidian editor containers
+			// The main editor area has class 'cm-editor' (CodeMirror 6)
+			// or 'CodeMirror' (CodeMirror 5) depending on version
+			if (
+				element.classList.contains("cm-editor") ||
+				element.classList.contains("CodeMirror") ||
+				element.classList.contains("markdown-source-view") ||
+				element.classList.contains("markdown-preview-view")
+			) {
+				// Additional check: ensure we're in the main workspace, not a modal or settings
+				const workspaceElement = element.closest(".workspace");
+				const modalElement = element.closest(".modal");
+				const settingsElement = element.closest(
+					".vertical-tab-content"
+				);
+
+				// Return true only if we're in the workspace and not in a modal/settings
+				return (
+					workspaceElement !== null &&
+					modalElement === null &&
+					settingsElement === null
+				);
+			}
+
+			element = element.parentElement;
+		}
+
+		return false;
 	}
 
 	private sendCurrentFileContext(): void {

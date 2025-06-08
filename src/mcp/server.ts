@@ -30,6 +30,7 @@ export class McpServer {
 		this.wss.on("connection", (sock: WebSocket) => {
 			console.debug("[MCP] Client connected");
 			this.connectedClients.add(sock);
+			console.debug(`[MCP] Total connected clients: ${this.connectedClients.size}`);
 
 			sock.on("message", (data) => {
 				this.handleMessage(sock, data.toString());
@@ -38,6 +39,7 @@ export class McpServer {
 			sock.on("close", () => {
 				console.debug("[MCP] Client disconnected");
 				this.connectedClients.delete(sock);
+				console.debug(`[MCP] Total connected clients: ${this.connectedClients.size}`);
 				this.config.onDisconnection?.(sock);
 			});
 
@@ -81,7 +83,9 @@ export class McpServer {
 	}
 
 	get clientCount(): number {
-		return this.connectedClients.size;
+		const count = this.connectedClients.size;
+		console.debug(`[MCP] WebSocket server clientCount getter called: ${count}`);
+		return count;
 	}
 
 	get serverPort(): number {

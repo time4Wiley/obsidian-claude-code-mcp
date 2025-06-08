@@ -132,11 +132,15 @@ export class McpDualServer {
 	}
 
 	get wsClientCount(): number {
-		return this.wsServer?.clientCount || 0;
+		const count = this.wsServer?.clientCount || 0;
+		console.debug(`[MCP Dual] WebSocket client count: ${count}`);
+		return count;
 	}
 
 	get httpClientCount(): number {
-		return this.httpServer?.clientCount || 0;
+		const count = this.httpServer?.clientCount || 0;
+		console.debug(`[MCP Dual] HTTP client count: ${count}`);
+		return count;
 	}
 
 	updateWorkspaceFolders(basePath: string): void {

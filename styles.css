@@ -34,7 +34,9 @@
 	border-radius: 4px;
 }
 
-.claude-terminal-container .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+.claude-terminal-container
+	.xterm
+	.xterm-viewport::-webkit-scrollbar-thumb:hover {
 	background: #777;
 }
 
@@ -51,6 +53,7 @@
 	background: var(--background-secondary);
 	border-radius: 8px;
 	border: 1px solid var(--background-modifier-border);
+	user-select: text !important; /* this was some how not selectable by default */
 }
 
 .mcp-server-status h3 {
