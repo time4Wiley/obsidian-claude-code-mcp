@@ -87,6 +87,10 @@ export class McpHttpServer {
 		return this.connections.size;
 	}
 
+	get serverPort(): number {
+		return this.port;
+	}
+
 	private handleRequest(req: IncomingMessage, res: ServerResponse): void {
 		const url = parse(req.url || '', true);
 		const pathname = url.pathname || '';

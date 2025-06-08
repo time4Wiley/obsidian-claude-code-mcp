@@ -43,3 +43,105 @@
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
+
+/* MCP Server Status Styles */
+.mcp-server-status {
+	margin-bottom: 20px;
+	padding: 16px;
+	background: var(--background-secondary);
+	border-radius: 8px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.mcp-server-status h3 {
+	margin-top: 0;
+	margin-bottom: 16px;
+	color: var(--text-normal);
+}
+
+.server-status-item {
+	margin-bottom: 16px;
+	padding: 12px;
+	background: var(--background-primary);
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border-hover);
+}
+
+.server-status-item:last-of-type {
+	margin-bottom: 12px;
+}
+
+.server-status-item h4 {
+	margin: 0 0 8px 0;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.status-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+}
+
+.status-indicator {
+	font-size: 12px;
+	line-height: 1;
+}
+
+.status-indicator.status-running {
+	color: var(--color-green);
+}
+
+.status-indicator.status-disabled {
+	color: var(--color-orange);
+}
+
+.status-indicator.status-error {
+	color: var(--color-red);
+}
+
+.status-text {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.status-clients {
+	color: var(--text-muted);
+	font-size: 12px;
+}
+
+.status-details {
+	margin-top: 8px;
+	padding-left: 16px;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--text-muted);
+}
+
+.status-details div {
+	margin-bottom: 2px;
+}
+
+.status-details code {
+	background: var(--background-secondary);
+	padding: 2px 4px;
+	border-radius: 3px;
+	font-size: 11px;
+	color: var(--text-accent);
+}
+
+.status-refresh {
+	text-align: right;
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.status-refresh button {
+	font-size: 12px;
+	padding: 6px 12px;
+}

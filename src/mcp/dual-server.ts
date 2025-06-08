@@ -147,8 +147,8 @@ export class McpDualServer {
 
 	getServerInfo(): { wsPort?: number; httpPort?: number; wsClients: number; httpClients: number } {
 		return {
-			wsPort: this.wsServer ? (this.wsServer as any).port : undefined,
-			httpPort: this.httpServer ? (this.httpServer as any).port : undefined,
+			wsPort: this.wsServer ? this.wsServer.serverPort : undefined,
+			httpPort: this.httpServer ? this.httpServer.serverPort : undefined,
 			wsClients: this.wsClientCount,
 			httpClients: this.httpClientCount,
 		};

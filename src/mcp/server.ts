@@ -14,6 +14,7 @@ export class McpServer {
 	private lockFilePath = "";
 	private connectedClients: Set<WebSocket> = new Set();
 	private config: McpServerConfig;
+	private port: number = 0;
 
 	constructor(config: McpServerConfig) {
 		this.config = config;
@@ -24,7 +25,7 @@ export class McpServer {
 		this.wss = new WebSocketServer({ port: 0 });
 
 		// address() is cast-safe once server is listening
-		const port = (this.wss.address() as any).port as number;
+		this.port = (this.wss.address() as any).port as number;
 
 		this.wss.on("connection", (sock: WebSocket) => {
 			console.debug("[MCP] Client connected");
@@ -53,13 +54,13 @@ export class McpServer {
 		});
 
 		// Write the discovery lock-file Claude looks for
-		await this.createLockFile(port);
+		await this.createLockFile(this.port);
 
 		// Set environment variables that Claude Code CLI expects
-		process.env.CLAUDE_CODE_SSE_PORT = port.toString();
+		process.env.CLAUDE_CODE_SSE_PORT = this.port.toString();
 		process.env.ENABLE_IDE_INTEGRATION = "true";
 
-		return port;
+		return this.port;
 	}
 
 	stop(): void {
@@ -81,6 +82,10 @@ export class McpServer {
 
 	get clientCount(): number {
 		return this.connectedClients.size;
+	}
+
+	get serverPort(): number {
+		return this.port;
 	}
 
 	private async createLockFile(port: number): Promise<void> {

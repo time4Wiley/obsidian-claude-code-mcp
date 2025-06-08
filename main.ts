@@ -20,7 +20,7 @@ import {
 // import claudeLogo from "./assets/claude-logo.png";
 
 export default class ClaudeMcpPlugin extends Plugin {
-	private mcpServer!: McpDualServer;
+	public mcpServer!: McpDualServer;
 	private workspaceManager!: WorkspaceManager;
 	public settings!: ClaudeCodeSettings;
 
