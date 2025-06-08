@@ -75,9 +75,9 @@ node test-manual-requests.js 9090 # Manual testing on port 9090
 
 Open browser to test SSE directly:
 
-1. Navigate to: `http://localhost:8080/sse` (or your configured port)
+1. Navigate to: `http://localhost:22360/sse` (or your configured port)
 2. Should see Server-Sent Events stream
-3. Or test: `http://localhost:8080/mcp` (newer endpoint)
+3. Or test: `http://localhost:22360/mcp` (newer endpoint)
 
 ### 5. Claude Desktop Testing
 
@@ -90,7 +90,7 @@ Open browser to test SSE directly:
 {
   "mcpServers": {
     "obsidian": {
-      "url": "http://localhost:8080/mcp",
+      "url": "http://localhost:22360/mcp",
       "env": {}
     }
   }
@@ -127,7 +127,7 @@ In Obsidian Developer Console (Ctrl+Shift+I):
 ### Check Server Responses
 
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:22360/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}'
 ```
@@ -140,7 +140,7 @@ Expected response:
 ### Check SSE Stream
 
 ```bash
-curl -N http://localhost:8080/sse
+curl -N http://localhost:22360/sse
 ```
 
 Should show:
@@ -150,8 +150,8 @@ data: {"jsonrpc":"2.0","method":"notifications/initialized","params":{"sessionId
 
 ## Common Issues
 
-1. **Port 8080 in use:**
-   - Change `httpPort` in `main.ts` 
+1. **Port 22360 in use:**
+   - Change the port in Obsidian Settings → Community Plugins → Claude Code → Settings
    - Update Claude Desktop config accordingly
 
 2. **Plugin not starting:**
@@ -172,7 +172,7 @@ data: {"jsonrpc":"2.0","method":"notifications/initialized","params":{"sessionId
 ## Success Indicators
 
 ✅ **HTTP/SSE Server Working:**
-- Browser shows SSE stream at `http://localhost:8080/sse`
+- Browser shows SSE stream at `http://localhost:22360/sse`
 - POST requests return valid JSON responses
 - Test script shows all tests passing
 

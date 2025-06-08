@@ -103,7 +103,7 @@ To connect Claude Desktop to the Obsidian MCP server, add the following configur
 {
   "mcpServers": {
     "obsidian": {
-      "url": "http://localhost:8080/mcp",
+      "url": "http://localhost:22360/mcp",
       "env": {}
     }
   }
@@ -111,10 +111,12 @@ To connect Claude Desktop to the Obsidian MCP server, add the following configur
 ```
 
 **Alternative endpoints supported:**
-- `http://localhost:8080/sse` - Legacy SSE endpoint
-- `http://localhost:8080/mcp` - New streamable HTTP endpoint (recommended)
+- `http://localhost:22360/sse` - Legacy SSE endpoint
+- `http://localhost:22360/mcp` - New streamable HTTP endpoint (recommended)
 
-**Port Configuration**: The HTTP/SSE server runs on port 8080 by default, but this can be changed in the plugin settings. If you change the port, update your Claude Desktop configuration accordingly.
+**Port Configuration**: The HTTP/SSE server runs on port 22360 by default to avoid conflicts with common development services. This can be changed in the plugin settings. If you change the port, update your Claude Desktop configuration accordingly.
+
+**Multiple Vaults**: If you run multiple Obsidian vaults with this plugin, each vault needs a unique port. The plugin will automatically detect port conflicts and display a helpful notification guiding you to configure a different port in Settings → Community Plugins → Claude Code.
 
 **Configuring the Port**:
 1. Go to Obsidian Settings → Community Plugins → Claude Code → Settings

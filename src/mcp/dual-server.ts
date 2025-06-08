@@ -85,10 +85,15 @@ export class McpDualServer {
 				};
 
 				this.httpServer = new McpHttpServer(httpConfig);
-				result.httpPort = await this.httpServer.start(this.config.httpPort || 8080);
+				result.httpPort = await this.httpServer.start(this.config.httpPort || 22360);
 				console.debug(`[MCP Dual] HTTP server started on port ${result.httpPort}`);
 			} catch (error) {
 				console.error("[MCP Dual] Failed to start HTTP server:", error);
+				// Re-throw port-related errors so they can be handled by the main plugin
+				if (error.name === 'PortInUseError' || error.name === 'PermissionError' || 
+					error.message?.includes('EADDRINUSE') || error.message?.includes('EACCES')) {
+					throw error;
+				}
 			}
 		}
 

@@ -9,7 +9,7 @@ const EventSource = require('eventsource');
 const WebSocket = require('ws');
 
 class McpTester {
-    constructor(port = 8080) {
+    constructor(port = 22360) {
         this.HTTP_PORT = port;
         this.BASE_URL = `http://localhost:${port}`;
         this.testResults = [];
@@ -312,7 +312,7 @@ if (typeof EventSource === 'undefined') {
 }
 
 // Run tests
-const port = process.argv[2] || 8080;
+const port = process.argv[2] || 22360;
 console.log(`Using port: ${port} (override with: node test-mcp-client.js [port])`);
 const tester = new McpTester(parseInt(port));
 tester.runAllTests().catch(console.error);

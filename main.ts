@@ -109,10 +109,21 @@ export default class ClaudeMcpPlugin extends Plugin {
 			console.error('[MCP] Failed to start server:', error);
 			
 			// Handle specific error types
-			if (error.message?.includes('EADDRINUSE')) {
-				new Notice(`Port ${this.settings.mcpHttpPort} is already in use. Please choose a different port in settings.`, 8000);
-			} else if (error.message?.includes('EACCES')) {
-				new Notice(`Permission denied for port ${this.settings.mcpHttpPort}. Try using a port above 1024.`, 8000);
+			if (error.message?.includes('EADDRINUSE') || error.name === 'PortInUseError') {
+				// Enhanced message for port conflicts, especially multiple vaults
+				new Notice(
+					`Port ${this.settings.mcpHttpPort} is already in use. This might be because:\n` +
+					`• Another Obsidian vault is running this plugin\n` +
+					`• Another application is using this port\n\n` +
+					`Please configure a different port in Settings → Community Plugins → Claude Code.`,
+					10000
+				);
+			} else if (error.message?.includes('EACCES') || error.name === 'PermissionError') {
+				new Notice(
+					`Permission denied for port ${this.settings.mcpHttpPort}. ` +
+					`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
+					8000
+				);
 			} else {
 				new Notice(`Failed to start MCP server: ${error.message}`, 8000);
 			}
@@ -135,7 +146,25 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 		} catch (error) {
 			console.error('[MCP] Failed to restart server:', error);
-			new Notice(`Failed to restart MCP server: ${error.message}`, 8000);
+			
+			// Handle specific error types
+			if (error.message?.includes('EADDRINUSE') || error.name === 'PortInUseError') {
+				new Notice(
+					`Port ${this.settings.mcpHttpPort} is already in use. This might be because:\n` +
+					`• Another Obsidian vault is running this plugin\n` +
+					`• Another application is using this port\n\n` +
+					`Please configure a different port in Settings → Community Plugins → Claude Code.`,
+					10000
+				);
+			} else if (error.message?.includes('EACCES') || error.name === 'PermissionError') {
+				new Notice(
+					`Permission denied for port ${this.settings.mcpHttpPort}. ` +
+					`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
+					8000
+				);
+			} else {
+				new Notice(`Failed to restart MCP server: ${error.message}`, 8000);
+			}
 		}
 	}
 

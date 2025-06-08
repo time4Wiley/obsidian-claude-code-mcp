@@ -14,7 +14,7 @@ function testPing() {
     };
 
     const data = JSON.stringify(request);
-    const port = process.argv[2] || 8080;
+    const port = process.argv[2] || 22360;
     const options = {
         hostname: 'localhost',
         port: parseInt(port),

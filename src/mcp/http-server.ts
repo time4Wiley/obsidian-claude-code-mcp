@@ -18,13 +18,13 @@ export class McpHttpServer {
 	private server: any;
 	private connections: Map<string, SseConnection> = new Map();
 	private config: HttpServerConfig;
-	private port: number = 8080;
+	private port: number = 22360;
 
 	constructor(config: HttpServerConfig) {
 		this.config = config;
 	}
 
-	async start(port: number = 8080): Promise<number> {
+	async start(port: number = 22360): Promise<number> {
 		this.port = port;
 		
 		this.server = createServer((req, res) => {

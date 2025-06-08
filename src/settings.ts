@@ -12,7 +12,7 @@ export interface ClaudeCodeSettings {
 export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
 	autoCloseTerminalOnClaudeExit: true,
 	startupCommand: "claude -c",
-	mcpHttpPort: 8080,
+	mcpHttpPort: 22360,
 	enableWebSocketServer: true,
 	enableHttpServer: true,
 };
@@ -68,11 +68,11 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("HTTP Server Port")
 			.setDesc(
-				"Port for the HTTP/SSE MCP server. Change this if port 8080 is already in use. The server will restart automatically when changed."
+				"Port for the HTTP/SSE MCP server. Default is 22360 to avoid conflicts with common dev services. The server will restart automatically when changed."
 			)
 			.addText((text) =>
 				text
-					.setPlaceholder("8080")
+					.setPlaceholder("22360")
 					.setValue(this.plugin.settings.mcpHttpPort.toString())
 					.onChange(async (value) => {
 						const port = parseInt(value);

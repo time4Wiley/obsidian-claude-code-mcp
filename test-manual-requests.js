@@ -8,7 +8,7 @@ const http = require('http');
 const readline = require('readline');
 
 class ManualMcpTester {
-    constructor(port = 8080) {
+    constructor(port = 22360) {
         this.HTTP_PORT = port;
         this.requestId = 0;
         this.rl = readline.createInterface({
@@ -181,7 +181,7 @@ class ManualMcpTester {
     }
 }
 
-const port = process.argv[2] || 8080;
+const port = process.argv[2] || 22360;
 console.log(`Using port: ${port} (override with: node test-manual-requests.js [port])`);
 const tester = new ManualMcpTester(parseInt(port));
 tester.run().catch(console.error);
