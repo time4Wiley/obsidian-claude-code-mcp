@@ -39,14 +39,25 @@ The codebase has been refactored into a clean modular architecture:
 - **Separation of Concerns**: Each module has a single, well-defined responsibility
 - **Plugin Integration**: Uses Obsidian's `registerEvent` and `registerDomEvent` for proper cleanup
 
-### MCP Server Implementation
+### Dual Transport MCP Server Implementation
 
-The plugin implements a WebSocket-based MCP server that:
+The plugin implements both WebSocket and HTTP/SSE MCP servers for maximum compatibility:
 
+#### WebSocket Server (for Claude Code IDE integration):
 1. **Discovery Mechanism** - Creates lock files in `~/.claude/ide/` for Claude Code auto-discovery
-2. **WebSocket Server** - Serves MCP protocol on random port for secure communication
-3. **Obsidian API Bridge** - Maps MCP calls to Obsidian's native vault operations
-4. **File Operations** - Handles read, write, and workspace context operations
+2. **WebSocket Protocol** - Serves MCP protocol on random port for secure communication
+3. **Auto-Discovery** - Claude Code automatically finds and connects to the plugin
+
+#### HTTP/SSE Server (for Claude Desktop and other MCP clients):
+1. **HTTP/SSE Protocol** - Serves MCP protocol on port 8080 by default
+2. **Manual Configuration** - Requires manual setup in client configuration
+3. **Streamable HTTP** - Supports both legacy SSE endpoints and new streamable HTTP transport
+4. **CORS Support** - Includes proper CORS headers for browser-based clients
+
+#### Shared Features:
+- **Obsidian API Bridge** - Maps MCP calls to Obsidian's native vault operations
+- **File Operations** - Handles read, write, and workspace context operations
+- **Unified Broadcasting** - Notifications sent to all connected clients across both transports
 
 ### Key Features
 
@@ -80,6 +91,36 @@ bun install  # Installs all dependencies including ws and @types/ws
 ### Plugin Installation
 
 For manual testing, copy `main.js`, `styles.css`, and `manifest.json` to your vault's `.obsidian/plugins/claude-code-terminal/` folder.
+
+### Claude Desktop Configuration
+
+To connect Claude Desktop to the Obsidian MCP server, add the following configuration to your Claude Desktop settings:
+
+**For macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**For Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "obsidian": {
+      "url": "http://localhost:8080/mcp",
+      "env": {}
+    }
+  }
+}
+```
+
+**Alternative endpoints supported:**
+- `http://localhost:8080/sse` - Legacy SSE endpoint
+- `http://localhost:8080/mcp` - New streamable HTTP endpoint (recommended)
+
+**Port Configuration**: The HTTP/SSE server runs on port 8080 by default, but this can be changed in the plugin settings. If you change the port, update your Claude Desktop configuration accordingly.
+
+**Configuring the Port**:
+1. Go to Obsidian Settings → Community Plugins → Claude Code → Settings
+2. In the "MCP Server Configuration" section, change the "HTTP Server Port"
+3. The server will automatically restart on the new port
+4. Update your Claude Desktop configuration to use the new port URL
 
 ## Technical Details
 

@@ -4,11 +4,17 @@ import ClaudeMcpPlugin from "../main";
 export interface ClaudeCodeSettings {
 	autoCloseTerminalOnClaudeExit: boolean;
 	startupCommand: string;
+	mcpHttpPort: number;
+	enableWebSocketServer: boolean;
+	enableHttpServer: boolean;
 }
 
 export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
 	autoCloseTerminalOnClaudeExit: true,
 	startupCommand: "claude -c",
+	mcpHttpPort: 8080,
+	enableWebSocketServer: true,
+	enableHttpServer: true,
 };
 
 export class ClaudeCodeSettingTab extends PluginSettingTab {
@@ -25,6 +31,63 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "Claude Code Settings" });
+
+		// MCP Server Configuration Section
+		containerEl.createEl("h3", { text: "MCP Server Configuration" });
+
+		new Setting(containerEl)
+			.setName("Enable WebSocket Server")
+			.setDesc(
+				"Enable WebSocket server for Claude Code IDE integration. This allows auto-discovery via lock files."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableWebSocketServer)
+					.onChange(async (value) => {
+						this.plugin.settings.enableWebSocketServer = value;
+						await this.plugin.saveSettings();
+						await this.plugin.restartMcpServer();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Enable HTTP/SSE Server")
+			.setDesc(
+				"Enable HTTP/SSE server for Claude Desktop and other MCP clients. Required for manual MCP client configuration."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableHttpServer)
+					.onChange(async (value) => {
+						this.plugin.settings.enableHttpServer = value;
+						await this.plugin.saveSettings();
+						await this.plugin.restartMcpServer();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("HTTP Server Port")
+			.setDesc(
+				"Port for the HTTP/SSE MCP server. Change this if port 8080 is already in use. The server will restart automatically when changed."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("8080")
+					.setValue(this.plugin.settings.mcpHttpPort.toString())
+					.onChange(async (value) => {
+						const port = parseInt(value);
+						if (isNaN(port) || port < 1024 || port > 65535) {
+							text.setValue(this.plugin.settings.mcpHttpPort.toString());
+							return;
+						}
+						this.plugin.settings.mcpHttpPort = port;
+						await this.plugin.saveSettings();
+						await this.plugin.restartMcpServer();
+					})
+			);
+
+		// Terminal Configuration Section
+		containerEl.createEl("h3", { text: "Terminal Configuration" });
 
 		new Setting(containerEl)
 			.setName("Auto-close terminal when Claude exits")

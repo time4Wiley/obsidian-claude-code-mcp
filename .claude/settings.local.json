@@ -10,7 +10,11 @@
       "Bash(rm:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:xterm-pty.netlify.app)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:modelcontextprotocol.io)",
+      "WebFetch(domain:www.ragie.ai)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }
