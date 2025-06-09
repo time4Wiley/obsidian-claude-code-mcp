@@ -143,6 +143,60 @@ How to use:
 			},
 		},
 	},
+	{
+		name: "getDiagnostics",
+		description: "Get system and vault diagnostic information",
+		inputSchema: {
+			type: "object",
+			properties: {},
+		},
+	},
+	{
+		name: "openDiff",
+		description: "Open a diff view (stub implementation for Obsidian compatibility)",
+		inputSchema: {
+			type: "object",
+			properties: {
+				old_file_path: {
+					type: "string",
+					description: "Path to the old version of the file",
+				},
+				new_file_path: {
+					type: "string",
+					description: "Path to the new version of the file",
+				},
+				new_file_contents: {
+					type: "string",
+					description: "Contents of the new file version",
+				},
+				tab_name: {
+					type: "string",
+					description: "Name of the tab to open",
+				},
+			},
+		},
+	},
+	{
+		name: "close_tab",
+		description: "Close a tab (stub implementation for Obsidian compatibility)",
+		inputSchema: {
+			type: "object",
+			properties: {
+				tab_name: {
+					type: "string",
+					description: "Name of the tab to close",
+				},
+			},
+		},
+	},
+	{
+		name: "closeAllDiffTabs",
+		description: "Close all diff tabs (stub implementation for Obsidian compatibility)",
+		inputSchema: {
+			type: "object",
+			properties: {},
+		},
+	},
 ];
 
 // Helper function to get tool names from definitions

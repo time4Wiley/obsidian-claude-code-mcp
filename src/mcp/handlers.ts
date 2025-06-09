@@ -91,8 +91,11 @@ export class McpHandlers {
 			case "tools/call":
 				return this.workspaceTools.handleToolCall(req, reply);
 
+			case "resources/list":
+				return this.handleResourcesList(req, reply);
+
 			default:
-				console.debug(`[MCP] Unknown method: ${req.method}`);
+				console.error(`[MCP] Unknown method called: ${req.method}`, req.params);
 				return reply({
 					error: { code: -32601, message: "method not implemented" },
 				});
@@ -198,6 +201,29 @@ export class McpHandlers {
 				error: {
 					code: -32603,
 					message: `failed to list prompts: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleResourcesList(
+		req: McpRequest,
+		reply: McpReplyFunction | HttpMcpReplyFunction
+	): Promise<void> {
+		try {
+			// Obsidian doesn't have the same resource concept as other IDEs
+			// Return empty resources list
+			console.debug(`[MCP] Resources list requested`);
+			reply({
+				result: {
+					resources: [],
+				},
+			});
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to list resources: ${error.message}`,
 				},
 			});
 		}
