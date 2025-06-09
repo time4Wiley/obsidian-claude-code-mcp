@@ -17,7 +17,8 @@
       "Bash(curl:*)",
       "Bash(eslint:*)",
       "Bash(npx eslint:*)",
-      "WebFetch(domain:spec.modelcontextprotocol.io)"
+      "WebFetch(domain:spec.modelcontextprotocol.io)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }
