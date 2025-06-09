@@ -5,6 +5,11 @@ import { FileTools } from "../tools/file-tools";
 import { WorkspaceTools } from "../tools/workspace-tools";
 import { WorkspaceManager } from "../obsidian/workspace-manager";
 
+// HTTP-compatible reply function type
+export interface HttpMcpReplyFunction {
+	(msg: Omit<import("./types").McpResponse, "jsonrpc" | "id">): void;
+}
+
 export class McpHandlers {
 	private fileTools: FileTools;
 	private workspaceTools: WorkspaceTools;
@@ -31,6 +36,21 @@ export class McpHandlers {
 			sock.send(response);
 		};
 
+		return this.handleRequestGeneric(req, reply);
+	}
+
+	async handleHttpRequest(
+		req: McpRequest,
+		reply: HttpMcpReplyFunction
+	): Promise<void> {
+		console.debug(`[MCP HTTP] Handling request: ${req.method}`, req.params);
+		return this.handleRequestGeneric(req, reply);
+	}
+
+	private async handleRequestGeneric(
+		req: McpRequest,
+		reply: McpReplyFunction | HttpMcpReplyFunction
+	): Promise<void> {
 		switch (req.method) {
 			case "initialize":
 				return this.handleInitialize(req, reply);
@@ -81,7 +101,7 @@ export class McpHandlers {
 
 	private async handleInitialize(
 		req: McpRequest,
-		reply: McpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		try {
 			const { protocolVersion, capabilities, clientInfo } =
@@ -90,7 +110,7 @@ export class McpHandlers {
 			// Respond with server capabilities
 			reply({
 				result: {
-					protocolVersion: "2025-03-26",
+					protocolVersion: "2024-11-05",
 					capabilities: {
 						roots: {
 							listChanged: false,
@@ -124,7 +144,7 @@ export class McpHandlers {
 
 	private async handleInitialized(
 		req: McpRequest,
-		reply: McpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		// No response needed for notifications
 		// Send initial file context when Claude connects
@@ -136,7 +156,7 @@ export class McpHandlers {
 
 	private async handleIdeConnected(
 		req: McpRequest,
-		reply: McpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		const { pid } = req.params || {};
 		// No response needed for notifications
@@ -144,7 +164,7 @@ export class McpHandlers {
 
 	private async handleToolsList(
 		req: McpRequest,
-		reply: McpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		try {
 			const tools = this.workspaceTools.getToolDefinitions();
@@ -165,7 +185,7 @@ export class McpHandlers {
 
 	private async handlePromptsList(
 		req: McpRequest,
-		reply: McpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		try {
 			reply({

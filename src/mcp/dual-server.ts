@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { WebSocket } from "ws";
 import { McpServer, McpServerConfig } from "./server";
-import { McpHttpServer, HttpServerConfig } from "./http-server";
+import { McpHttpServer, McpHttpServerConfig } from "./http-server";
 import { McpHandlers } from "./handlers";
 import { McpRequest, McpNotification } from "./types";
 import { WorkspaceManager } from "../obsidian/workspace-manager";
@@ -61,26 +61,15 @@ export class McpDualServer {
 		// Start HTTP/SSE server (for Claude Desktop and other MCP clients)
 		if (this.config.enableHttp !== false) {
 			try {
-				const httpConfig: HttpServerConfig = {
+				const httpConfig: McpHttpServerConfig = {
 					onMessage: (request: McpRequest, reply) => {
-						// Create a mock WebSocket-like object for compatibility with handlers
-						const mockSocket = {
-							send: (data: string) => {
-								const response = JSON.parse(data);
-								reply({
-									result: response.result,
-									error: response.error,
-								});
-							},
-						} as WebSocket;
-
-						this.handlers.handleRequest(mockSocket, request);
+						this.handlers.handleHttpRequest(request, reply);
 					},
-					onConnection: (sessionId: string) => {
-						console.debug(`[MCP Dual] HTTP client connected: ${sessionId}`);
+					onConnection: () => {
+						console.debug(`[MCP Dual] HTTP client connected`);
 					},
-					onDisconnection: (sessionId: string) => {
-						console.debug(`[MCP Dual] HTTP client disconnected: ${sessionId}`);
+					onDisconnection: () => {
+						console.debug(`[MCP Dual] HTTP client disconnected`);
 					},
 				};
 

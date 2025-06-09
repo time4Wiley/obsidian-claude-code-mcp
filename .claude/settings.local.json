@@ -14,7 +14,9 @@
       "WebFetch(domain:modelcontextprotocol.io)",
       "WebFetch(domain:www.ragie.ai)",
       "Bash(chmod:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(eslint:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": []
   }
