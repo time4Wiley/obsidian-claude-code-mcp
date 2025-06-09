@@ -223,10 +223,13 @@ export class ClaudeTerminalView extends ItemView {
 	private getTerminalEnv(): NodeJS.ProcessEnv {
 		return {
 			...process.env,
-			// Pass through MCP environment variables
+
+			// These are just taken from the nvim plugin: https://github.com/coder/claudecode.nvim/blob/c1cdcd5a61d5a18f262d5c8c53929e3a27cb7821/lua/claudecode/terminal.lua#L346
+			// Since none of this is officially documented it may change.
 			CLAUDE_CODE_SSE_PORT: process.env.CLAUDE_CODE_SSE_PORT || "",
 			ENABLE_IDE_INTEGRATION:
 				process.env.ENABLE_IDE_INTEGRATION || "true",
+			FORCE_CODE_TERMINAL: "true",
 
 			TERM_PROGRAM: "obsidian-claude-terminal", // Identifies this as integrated terminal
 			TERM_PROGRAM_VERSION: "1.0.0",

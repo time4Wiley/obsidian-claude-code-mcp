@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting } from "obsidian";
+import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import ClaudeMcpPlugin from "../main";
 
 export interface ClaudeCodeSettings {
@@ -7,6 +7,7 @@ export interface ClaudeCodeSettings {
 	mcpHttpPort: number;
 	enableWebSocketServer: boolean;
 	enableHttpServer: boolean;
+	enableEmbeddedTerminal: boolean;
 }
 
 export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
@@ -15,6 +16,7 @@ export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
 	mcpHttpPort: 22360,
 	enableWebSocketServer: true,
 	enableHttpServer: true,
+	enableEmbeddedTerminal: true,
 };
 
 export class ClaudeCodeSettingTab extends PluginSettingTab {
@@ -95,36 +97,64 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 		containerEl.createEl("h3", { text: "Terminal Configuration" });
 
 		new Setting(containerEl)
-			.setName("Auto-close terminal when Claude exits")
+			.setName("Enable Embedded Terminal")
 			.setDesc(
-				"Automatically close the terminal view when the Claude command exits. If disabled, the terminal will remain open as a regular shell."
+				"Enable the built-in terminal feature within Obsidian. When disabled, you can still use external MCP clients like Claude Desktop or Claude Code IDE. Requires plugin reload to take effect."
 			)
 			.addToggle((toggle) =>
 				toggle
-					.setValue(
-						this.plugin.settings.autoCloseTerminalOnClaudeExit
-					)
+					.setValue(this.plugin.settings.enableEmbeddedTerminal)
 					.onChange(async (value) => {
-						this.plugin.settings.autoCloseTerminalOnClaudeExit =
-							value;
+						this.plugin.settings.enableEmbeddedTerminal = value;
 						await this.plugin.saveSettings();
+
+						// Dynamically manage ribbon icon
+						if (value) {
+							this.plugin.addTerminalRibbonIcon();
+						} else {
+							this.plugin.removeTerminalRibbonIcon();
+						}
+
+						new Notice(
+							"Terminal setting changed. Please reload the plugin for full changes to take effect.",
+							5000
+						);
 					})
 			);
 
-		new Setting(containerEl)
-			.setName("Startup command")
-			.setDesc(
-				"Command to run automatically when the terminal opens. Use an empty string to disable auto-launch."
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("claude -c")
-					.setValue(this.plugin.settings.startupCommand)
-					.onChange(async (value) => {
-						this.plugin.settings.startupCommand = value;
-						await this.plugin.saveSettings();
-					})
-			);
+		if (this.plugin.settings.enableEmbeddedTerminal) {
+			new Setting(containerEl)
+				.setName("Auto-close terminal when Claude exits")
+				.setDesc(
+					"Automatically close the terminal view when the Claude command exits. If disabled, the terminal will remain open as a regular shell."
+				)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(
+							this.plugin.settings.autoCloseTerminalOnClaudeExit
+						)
+						.onChange(async (value) => {
+							this.plugin.settings.autoCloseTerminalOnClaudeExit =
+								value;
+							await this.plugin.saveSettings();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName("Startup command")
+				.setDesc(
+					"Command to run automatically when the terminal opens. Use an empty string to disable auto-launch."
+				)
+				.addText((text) =>
+					text
+						.setPlaceholder("claude -c")
+						.setValue(this.plugin.settings.startupCommand)
+						.onChange(async (value) => {
+							this.plugin.settings.startupCommand = value;
+							await this.plugin.saveSettings();
+						})
+				);
+		}
 	}
 
 	private displayServerStatus(containerEl: HTMLElement): void {
