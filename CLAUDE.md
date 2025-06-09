@@ -49,9 +49,9 @@ The plugin implements both WebSocket and HTTP/SSE MCP servers for maximum compat
 3. **Auto-Discovery** - Claude Code automatically finds and connects to the plugin
 
 #### HTTP/SSE Server (for Claude Desktop and other MCP clients):
-1. **HTTP/SSE Protocol** - Serves MCP protocol on port 8080 by default
+1. **HTTP/SSE Protocol** - Serves MCP protocol on port 22360 by default
 2. **Manual Configuration** - Requires manual setup in client configuration
-3. **Streamable HTTP** - Supports both legacy SSE endpoints and new streamable HTTP transport
+3. **Legacy SSE Transport** - Uses the older MCP spec (2024-11-05) for broader compatibility with MCP clients that haven't updated to the newer streamable HTTP transport
 4. **CORS Support** - Includes proper CORS headers for browser-based clients
 
 #### Shared Features:
@@ -111,8 +111,10 @@ To connect Claude Desktop to the Obsidian MCP server, add the following configur
 ```
 
 **Alternative endpoints supported:**
-- `http://localhost:22360/sse` - Legacy SSE endpoint
-- `http://localhost:22360/mcp` - New streamable HTTP endpoint (recommended)
+- `http://localhost:22360/sse` - Legacy SSE endpoint (2024-11-05 spec)
+- `http://localhost:22360/mcp` - Same endpoint, different path alias
+
+**MCP Specification Version**: This plugin uses the older MCP specification (2024-11-05) documented at https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse for maximum compatibility. While the newer streamable HTTP transport (2025-03-26) is available, many MCP clients have not yet been updated to support it. We will continue to support the older version indefinitely until the broader ecosystem becomes more compatible.
 
 **Port Configuration**: The HTTP/SSE server runs on port 22360 by default to avoid conflicts with common development services. This can be changed in the plugin settings. If you change the port, update your Claude Desktop configuration accordingly.
 

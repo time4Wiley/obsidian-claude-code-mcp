@@ -45,8 +45,10 @@ Claude Desktop can connect to your Obsidian vault through the HTTP/SSE MCP serve
 
 **Alternative Endpoints:**
 
--   `http://localhost:22360/sse` - Legacy SSE endpoint
--   `http://localhost:22360/mcp` - New streamable HTTP endpoint (recommended)
+-   `http://localhost:22360/sse` - Legacy SSE endpoint (2024-11-05 spec)
+-   `http://localhost:22360/mcp` - Same endpoint, different path alias
+
+**MCP Specification Version**: This plugin uses the older MCP specification (2024-11-05) documented at https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse for maximum compatibility. While the newer streamable HTTP transport (2025-03-26) is available, many MCP clients have not yet been updated to support it. We will continue to support the older version indefinitely until the broader ecosystem becomes more compatible.
 
 ### Claude Code CLI
 
