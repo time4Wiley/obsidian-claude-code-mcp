@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice, App } from "obsidian";
-import { Terminal } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
 import { spawn, ChildProcess } from "child_process";
 import {
 	Pseudoterminal,
