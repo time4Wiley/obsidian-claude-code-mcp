@@ -13,11 +13,11 @@ import {
 	ClaudeCodeSettingTab,
 } from "./src/settings";
 // Terminal and icon imports commented out until those modules are available
-// import {
-// 	ClaudeTerminalView,
-// 	TERMINAL_VIEW_TYPE,
-// } from "./src/terminal/terminal-view";
-// import claudeLogo from "./assets/claude-logo.png";
+import {
+	ClaudeTerminalView,
+	TERMINAL_VIEW_TYPE,
+} from "./src/terminal/terminal-view";
+import claudeLogo from "./assets/claude-logo.png";
 
 export default class ClaudeMcpPlugin extends Plugin {
 	public mcpServer!: McpDualServer;
@@ -31,23 +31,23 @@ export default class ClaudeMcpPlugin extends Plugin {
 		await this.loadSettings();
 
 		// Register custom Claude icon (commented out until claudeLogo is available)
-		// addIcon(
-		// 	"claude-logo",
-		// 	`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-		// 		<image href="${claudeLogo}" width="16" height="16" />
-		// 	</svg>`
-		// );
+		addIcon(
+			"claude-logo",
+			`<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+				<image href="${claudeLogo}" width="16" height="16" />
+			</svg>`
+		);
 
 		// Register terminal view (commented out until terminal modules are available)
-		// this.registerView(
-		// 	TERMINAL_VIEW_TYPE,
-		// 	(leaf) => new ClaudeTerminalView(leaf, this)
-		// );
+		this.registerView(
+			TERMINAL_VIEW_TYPE,
+			(leaf) => new ClaudeTerminalView(leaf, this)
+		);
 
 		// Add ribbon button for terminal toggle (commented out until terminal is available)
-		// this.addRibbonIcon("claude-logo", "Toggle Claude Terminal", () => {
-		// 	this.toggleClaudeTerminal();
-		// });
+		this.addRibbonIcon("claude-logo", "Toggle Claude Terminal", () => {
+			this.toggleClaudeTerminal();
+		});
 
 		// Add settings tab
 		this.addSettingTab(new ClaudeCodeSettingTab(this.app, this));
@@ -65,13 +65,12 @@ export default class ClaudeMcpPlugin extends Plugin {
 		this.workspaceManager.setupListeners();
 
 		// Register commands (commented out until terminal is available)
-		// this.addCommand({
-		// 	id: "toggle-claude-terminal",
-		// 	name: "Toggle Claude Terminal",
-		// 	callback: () => this.toggleClaudeTerminal(),
-		// 	hotkeys: [{ modifiers: ["Ctrl"], key: "`" }],
-		// });
-
+		this.addCommand({
+			id: "toggle-claude-terminal",
+			name: "Toggle Claude Terminal",
+			callback: () => this.toggleClaudeTerminal(),
+			hotkeys: [{ modifiers: ["Ctrl"], key: "`" }],
+		});
 	}
 
 	onunload() {
@@ -96,36 +95,49 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 			// Update lock file with workspace path
 			const basePath =
-				(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
+				(this.app.vault.adapter as any).getBasePath?.() ||
+				process.cwd();
 			console.debug(`[MCP] Vault base path: ${basePath}`);
 			this.mcpServer.updateWorkspaceFolders(basePath);
 
 			// Show success notification
-			const wsStatus = serverInfo.wsPort ? `WebSocket: ${serverInfo.wsPort}` : 'WebSocket: disabled';
-			const httpStatus = serverInfo.httpPort ? `HTTP: ${serverInfo.httpPort}` : 'HTTP: disabled';
+			const wsStatus = serverInfo.wsPort
+				? `WebSocket: ${serverInfo.wsPort}`
+				: "WebSocket: disabled";
+			const httpStatus = serverInfo.httpPort
+				? `HTTP: ${serverInfo.httpPort}`
+				: "HTTP: disabled";
 			new Notice(`Claude MCP running - ${wsStatus}, ${httpStatus}`);
-
 		} catch (error) {
-			console.error('[MCP] Failed to start server:', error);
-			
+			console.error("[MCP] Failed to start server:", error);
+
 			// Handle specific error types
-			if (error.message?.includes('EADDRINUSE') || error.name === 'PortInUseError') {
+			if (
+				error.message?.includes("EADDRINUSE") ||
+				error.name === "PortInUseError"
+			) {
 				// Enhanced message for port conflicts, especially multiple vaults
 				new Notice(
 					`Port ${this.settings.mcpHttpPort} is already in use. This might be because:\n` +
-					`• Another Obsidian vault is running this plugin\n` +
-					`• Another application is using this port\n\n` +
-					`Please configure a different port in Settings → Community Plugins → Claude Code.`,
+						`• Another Obsidian vault is running this plugin\n` +
+						`• Another application is using this port\n\n` +
+						`Please configure a different port in Settings → Community Plugins → Claude Code.`,
 					10000
 				);
-			} else if (error.message?.includes('EACCES') || error.name === 'PermissionError') {
+			} else if (
+				error.message?.includes("EACCES") ||
+				error.name === "PermissionError"
+			) {
 				new Notice(
 					`Permission denied for port ${this.settings.mcpHttpPort}. ` +
-					`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
+						`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
 					8000
 				);
 			} else {
-				new Notice(`Failed to start MCP server: ${error.message}`, 8000);
+				new Notice(
+					`Failed to start MCP server: ${error.message}`,
+					8000
+				);
 			}
 		}
 	}
@@ -134,91 +146,99 @@ export default class ClaudeMcpPlugin extends Plugin {
 		try {
 			// Stop existing server
 			if (this.mcpServer) {
-				console.debug('[MCP] Stopping server for restart...');
+				console.debug("[MCP] Stopping server for restart...");
 				this.mcpServer.stop();
 			}
 
 			// Small delay to ensure clean shutdown
-			await new Promise(resolve => setTimeout(resolve, 500));
+			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			// Restart server with new settings
 			await this.initializeMcpServer();
-
 		} catch (error) {
-			console.error('[MCP] Failed to restart server:', error);
-			
+			console.error("[MCP] Failed to restart server:", error);
+
 			// Handle specific error types
-			if (error.message?.includes('EADDRINUSE') || error.name === 'PortInUseError') {
+			if (
+				error.message?.includes("EADDRINUSE") ||
+				error.name === "PortInUseError"
+			) {
 				new Notice(
 					`Port ${this.settings.mcpHttpPort} is already in use. This might be because:\n` +
-					`• Another Obsidian vault is running this plugin\n` +
-					`• Another application is using this port\n\n` +
-					`Please configure a different port in Settings → Community Plugins → Claude Code.`,
+						`• Another Obsidian vault is running this plugin\n` +
+						`• Another application is using this port\n\n` +
+						`Please configure a different port in Settings → Community Plugins → Claude Code.`,
 					10000
 				);
-			} else if (error.message?.includes('EACCES') || error.name === 'PermissionError') {
+			} else if (
+				error.message?.includes("EACCES") ||
+				error.name === "PermissionError"
+			) {
 				new Notice(
 					`Permission denied for port ${this.settings.mcpHttpPort}. ` +
-					`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
+						`Try using a port above 1024 in Settings → Community Plugins → Claude Code.`,
 					8000
 				);
 			} else {
-				new Notice(`Failed to restart MCP server: ${error.message}`, 8000);
+				new Notice(
+					`Failed to restart MCP server: ${error.message}`,
+					8000
+				);
 			}
 		}
 	}
 
-	/* ---------------- terminal management (commented out until terminal modules are available) ---- */
+	/* ---------------- terminal management ---------------- */
 
-	// private async toggleClaudeTerminal(): Promise<void> {
-	// 	try {
-	// 		// Check if terminal is already open
-	// 		const existingLeaf =
-	// 			this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
-	// 		if (existingLeaf) {
-	// 			// Check if the terminal leaf is currently active
-	// 			const isActive = this.app.workspace.activeLeaf === existingLeaf;
-	// 			if (isActive) {
-	// 				// Terminal is active - close it
-	// 				existingLeaf.detach();
-	// 				return;
-	// 			} else {
-	// 				// Terminal exists but isn't active - focus it
-	// 				this.app.workspace.revealLeaf(existingLeaf);
-	// 				setTimeout(() => {
-	// 					const terminalView =
-	// 						existingLeaf.view as ClaudeTerminalView;
-	// 					if (
-	// 						terminalView &&
-	// 						typeof terminalView.focusTerminal === "function"
-	// 					) {
-	// 						terminalView.focusTerminal();
-	// 					}
-	// 				}, 50);
-	// 				return;
-	// 			}
-	// 		}
+	private async toggleClaudeTerminal(): Promise<void> {
+		try {
+			// Check if terminal is already open
+			const existingLeaf =
+				this.app.workspace.getLeavesOfType(TERMINAL_VIEW_TYPE)[0];
+			if (existingLeaf) {
+				// Check if the terminal leaf is currently active
+				const isActive = this.app.workspace.activeLeaf === existingLeaf;
+				if (isActive) {
+					// Terminal is active - close it
+					existingLeaf.detach();
+					return;
+				} else {
+					// Terminal exists but isn't active - focus it
+					this.app.workspace.revealLeaf(existingLeaf);
+					setTimeout(() => {
+						const terminalView =
+							existingLeaf.view as ClaudeTerminalView;
+						if (
+							terminalView &&
+							typeof terminalView.focusTerminal === "function"
+						) {
+							terminalView.focusTerminal();
+						}
+					}, 50);
+					return;
+				}
+			}
 
-	// 		// Create new terminal
-	// 		const leaf = this.app.workspace.getLeaf("split");
-	// 		await leaf.setViewState({ type: TERMINAL_VIEW_TYPE });
-	// 		this.app.workspace.revealLeaf(leaf);
+			// Create new terminal
+			const leaf = this.app.workspace.getLeaf("split");
+			await leaf.setViewState({ type: TERMINAL_VIEW_TYPE });
+			this.app.workspace.revealLeaf(leaf);
 
-	// 		// Focus the terminal after a brief delay to ensure it's ready
-	// 		setTimeout(() => {
-	// 			const terminalView = leaf.view as ClaudeTerminalView;
-	// 			if (
-	// 				terminalView &&
-	// 				typeof terminalView.focusTerminal === "function"
-	// 			) {
-	// 				terminalView.focusTerminal();
-	// 			}
-	// 		}, 150);
-	// 	} catch (error) {
-	// 		console.error("[Terminal] Failed to toggle terminal:", error);
-	// 		new Notice("Failed to toggle Claude Terminal");
-	// 	}
-	// }
+			// Focus the terminal after a brief delay to ensure it's ready
+			setTimeout(() => {
+				const terminalView = leaf.view as ClaudeTerminalView;
+				if (
+					terminalView &&
+					typeof terminalView.focusTerminal === "function"
+				) {
+					terminalView.focusTerminal();
+				}
+			}, 150);
+		} catch (error) {
+			console.error("[Terminal] Failed to toggle terminal:", error);
+			new Notice("Failed to toggle Claude Terminal");
+		}
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(

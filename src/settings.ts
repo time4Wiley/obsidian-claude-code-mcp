@@ -11,7 +11,7 @@ export interface ClaudeCodeSettings {
 
 export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
 	autoCloseTerminalOnClaudeExit: true,
-	startupCommand: "claude -c",
+	startupCommand: "claude",
 	mcpHttpPort: 22360,
 	enableWebSocketServer: true,
 	enableHttpServer: true,
@@ -80,7 +80,9 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						const port = parseInt(value);
 						if (isNaN(port) || port < 1024 || port > 65535) {
-							text.setValue(this.plugin.settings.mcpHttpPort.toString());
+							text.setValue(
+								this.plugin.settings.mcpHttpPort.toString()
+							);
 							return;
 						}
 						this.plugin.settings.mcpHttpPort = port;
@@ -126,16 +128,20 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 	}
 
 	private displayServerStatus(containerEl: HTMLElement): void {
-		const statusSection = containerEl.createEl("div", { cls: "mcp-server-status" });
+		const statusSection = containerEl.createEl("div", {
+			cls: "mcp-server-status",
+		});
 		statusSection.createEl("h3", { text: "MCP Server Status" });
 
 		// Get server info from the plugin
 		const serverInfo = this.plugin.mcpServer?.getServerInfo() || {};
-		
+
 		// WebSocket Server Status
-		const wsContainer = statusSection.createEl("div", { cls: "server-status-item" });
+		const wsContainer = statusSection.createEl("div", {
+			cls: "server-status-item",
+		});
 		wsContainer.createEl("h4", { text: "WebSocket Server (Claude Code)" });
-		
+
 		const wsStatus = wsContainer.createEl("div", { cls: "status-line" });
 		if (this.plugin.settings.enableWebSocketServer && serverInfo.wsPort) {
 			wsStatus.innerHTML = `
@@ -143,8 +149,10 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 				<span class="status-text">Running on port ${serverInfo.wsPort}</span>
 				<span class="status-clients">(${serverInfo.wsClients || 0} clients)</span>
 			`;
-			
-			const wsDetails = wsContainer.createEl("div", { cls: "status-details" });
+
+			const wsDetails = wsContainer.createEl("div", {
+				cls: "status-details",
+			});
 			wsDetails.innerHTML = `
 				<div>• Auto-discovery enabled via lock files</div>
 				<div>• Lock file: <code>~/.claude/ide/${serverInfo.wsPort}.lock</code></div>
@@ -163,22 +171,29 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 		}
 
 		// HTTP/SSE Server Status
-		const httpContainer = statusSection.createEl("div", { cls: "server-status-item" });
-		httpContainer.createEl("h4", { text: "HTTP/SSE Server (Claude Desktop)" });
-		
-		const httpStatus = httpContainer.createEl("div", { cls: "status-line" });
+		const httpContainer = statusSection.createEl("div", {
+			cls: "server-status-item",
+		});
+		httpContainer.createEl("h4", {
+			text: "MCP Server (HTTP/SSE transport)",
+		});
+
+		const httpStatus = httpContainer.createEl("div", {
+			cls: "status-line",
+		});
 		if (this.plugin.settings.enableHttpServer && serverInfo.httpPort) {
 			httpStatus.innerHTML = `
 				<span class="status-indicator status-running">●</span>
 				<span class="status-text">Running on port ${serverInfo.httpPort}</span>
 				<span class="status-clients">(${serverInfo.httpClients || 0} clients)</span>
 			`;
-			
-			const httpDetails = httpContainer.createEl("div", { cls: "status-details" });
+
+			const httpDetails = httpContainer.createEl("div", {
+				cls: "status-details",
+			});
 			httpDetails.innerHTML = `
-				<div>• HTTP POST: <code>http://localhost:${serverInfo.httpPort}/mcp</code></div>
 				<div>• SSE Stream: <code>http://localhost:${serverInfo.httpPort}/sse</code></div>
-				<div>• Add to Claude Desktop config: <code>"url": "http://localhost:${serverInfo.httpPort}/mcp"</code></div>
+				<div>• Add to Claude Desktop config: <code>"url": "http://localhost:${serverInfo.httpPort}/sse"</code></div>
 			`;
 		} else if (!this.plugin.settings.enableHttpServer) {
 			httpStatus.innerHTML = `
@@ -193,10 +208,12 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 		}
 
 		// Add refresh button
-		const refreshContainer = statusSection.createEl("div", { cls: "status-refresh" });
-		const refreshButton = refreshContainer.createEl("button", { 
+		const refreshContainer = statusSection.createEl("div", {
+			cls: "status-refresh",
+		});
+		const refreshButton = refreshContainer.createEl("button", {
 			text: "Refresh Status",
-			cls: "mod-cta"
+			cls: "mod-cta",
 		});
 		refreshButton.addEventListener("click", () => {
 			this.display(); // Refresh the entire settings display
