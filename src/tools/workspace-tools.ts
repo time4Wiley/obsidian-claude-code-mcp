@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import * as obsidian from "obsidian";
 import {
 	McpRequest,
 	McpReplyFunction,
@@ -122,6 +123,38 @@ export class WorkspaceTools {
 					},
 				},
 			},
+			{
+				name: "obsidian_api",
+				description: `Use the Obsidian API directly. This is an experimental tool and should be used with caution. Only use this tool when the other Obsidian tools are insufficient.
+
+IMPORTANT: Be very careful when using this tool. It provides full, unrestricted access to the Obsidian API, which allows destructive actions.
+
+Definitions:
+- \`app\` is the Obsidian App instance.
+- \`obsidian\` is the 'obsidian' module import. I.e. the result of \`require('obsidian')\` or \`import * as obsidian from 'obsidian'\`.
+
+How to use:
+- Write a function body as a string that takes the Obsidian \`app\` instance as the first argument and the \`obsidian\` module as the second argument.
+  - Example: \`"return typeof app === undefined;"\`. This will return \`false\`, since \`app\` is the first argument and is defined.
+  - The string will be evaluated using the \`new Function\` constructor. \`new Function('app', 'obsidian', yourCode)\`.
+  - The App object is documented here: https://docs.obsidian.md/Reference/TypeScript+API/App. Make use of your expertise with Obsidian plugins to utilise this API.
+- Pass the function definition as a string to this tool.
+- The function will be called with the Obsidian \`app\` instance as the first argument, and the \`obsidian\` module as the second argument.
+- The return value of your function will be returned as the result of this tool.
+- NOTE: The \`obsidian\` module is provided as an argument so that you do not need to \`require\` or \`import\` it in your function body. Neither of these are available in the global scope and will not be available to the function.
+- NOTE: A return value is not required. If your function has a return statement we will attempt to serialize the value using JSON.stringify.
+- NOTE: Any error thrown by your function will be caught and returned as an error object.`,
+				inputSchema: {
+					type: "object",
+					properties: {
+						functionBody: {
+							type: "string",
+							description:
+								"The full function body, as a plain string, to be called with the Obsidian `app` instance as the first argument and `obsidian` module as the second argument.",
+						},
+					},
+				},
+			},
 		];
 	}
 
@@ -184,6 +217,9 @@ export class WorkspaceTools {
 
 				case "insert":
 					return this.handleInsertTool(args, reply);
+
+				case "obsidian_api":
+					return this.handleObsidianApiTool(args, reply);
 
 				default:
 					return reply({
@@ -523,6 +559,68 @@ export class WorkspaceTools {
 				error: {
 					code: -32603,
 					message: `failed to get workspace info: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleObsidianApiTool(
+		args: any,
+		reply: McpReplyFunction
+	): Promise<void> {
+		try {
+			const { functionBody } = args || {};
+			if (!functionBody || typeof functionBody !== "string") {
+				return reply({
+					error: {
+						code: -32602,
+						message:
+							"functionBody parameter is required and must be a string",
+					},
+				});
+			}
+
+			// Create and execute the function
+			const fn = new Function("app", "obsidian", functionBody);
+			let result = fn(this.app, obsidian);
+
+			// Check if the result is a Promise and await it if so
+			const isThenable =
+				typeof result === "object" &&
+				result !== null &&
+				typeof result.then === "function";
+			if (result instanceof Promise || isThenable) {
+				result = await result;
+			}
+
+			// Serialize the result
+			let serializedResult: string;
+			try {
+				serializedResult =
+					result !== undefined
+						? JSON.stringify(result, null, 2)
+						: "undefined";
+			} catch (serializationError) {
+				serializedResult = `[Non-serializable result: ${typeof result}]`;
+			}
+
+			return reply({
+				result: {
+					content: [
+						{
+							type: "text",
+							text: `Function executed successfully.\nResult: ${serializedResult}`,
+						},
+					],
+				},
+			});
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `Error executing function: ${
+						error.message || error
+					}`,
 				},
 			});
 		}
