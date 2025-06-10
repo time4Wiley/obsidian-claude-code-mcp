@@ -70,6 +70,49 @@ export class ClaudeTerminalView extends ItemView {
 		// Set up shell process - now includes environment setup
 		await this.startShell();
 
+		// Add custom key handler for Shift+Enter to insert a newline
+		this.terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+			// We only care about keydown events.
+			if (event.type !== "keydown") {
+				return true;
+			}
+
+			// Check for Shift+Enter without other modifiers
+			if (
+				event.key === "Enter" &&
+				event.shiftKey &&
+				!event.altKey &&
+				!event.ctrlKey &&
+				!event.metaKey
+			) {
+				// Ensure we have a pseudoterminal with a shell property
+				if (this.pseudoterminal?.shell) {
+					// Prevent the default Enter behavior (sending \r)
+					event.preventDefault();
+
+					// Manually send a newline character to the PTY's stdin
+					this.pseudoterminal.shell
+						.then((shell) => {
+							if (shell?.stdin?.writable) {
+								shell.stdin.write("\n");
+							}
+						})
+						.catch((error) => {
+							console.error(
+								"[Terminal] Failed to write newline to PTY stdin:",
+								error
+							);
+						});
+
+					// Stop xterm.js from processing the event further
+					return false;
+				}
+			}
+
+			// Allow xterm.js to process all other key events
+			return true;
+		});
+
 		// Set up terminal resizing
 		this.terminal.onResize(({ cols, rows }) => {
 			if (this.pseudoterminal?.resize) {
