@@ -1,10 +1,10 @@
 {
-	"id": "claude-code-terminal",
-	"name": "Claude Code Terminal",
+	"id": "claude-code-editor-mcp",
+	"name": "Claude Code Editor & MCP",
 	"minAppVersion": "0.15.0",
 	"version": "1.1.0",
-	"description": "A terminal interface for Claude Code within Obsidian.",
-	"author": "",
-	"authorUrl": "",
+	"description": "Use Claude Code within your notes. Connect any LLM to your notes using MCP.",
+	"author": "iansinnott",
+	"authorUrl": "https://github.com/iansinnott",
 	"isDesktopOnly": true
 }

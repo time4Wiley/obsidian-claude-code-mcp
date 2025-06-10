@@ -17,38 +17,50 @@ This plugin allows Claude Code and other MCP clients (like Claude Desktop) to in
 
 This plugin serves as an MCP server that various Claude clients can connect to. Here's how to configure different clients:
 
-### Claude Desktop
+### Claude Desktop (as of 2025-06-09)
 
-Claude Desktop can connect to your Obsidian vault through the HTTP/SSE MCP server.
+Claude Desktop requires a special configuration to connect to the Obsidian MCP server because it does not directly support HTTP transports. We will use `mcp-remote`, a tool that creates a local `stdio` bridge to the server's HTTP endpoint.
 
 **Configuration Steps:**
 
-1. **Install and enable** this plugin in Obsidian
-2. **Locate your Claude Desktop config file**:
-    - **macOS**: `$HOME/Library/Application Support/Claude/claude_desktop_config.json`
-    - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-3. **Add the Obsidian MCP server** to your config:
+1.  **Install and enable** this plugin in Obsidian.
+2.  **Make sure you have Node.js installed**, as `npx` (which comes with Node.js) is used to run the bridge tool.
+3.  **Locate your Claude Desktop config file**:
+    -   **macOS**: `$HOME/Library/Application Support/Claude/claude_desktop_config.json`
+    -   **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+4.  **Add the Obsidian MCP server** to your config using the `mcp-remote` command. `npx` will automatically download and run it for you.
+
+    ```json
+    {
+    	"mcpServers": {
+    		"obsidian": {
+    			"command": "npx",
+    			"args": ["mcp-remote", "http://localhost:22360/sse"],
+    			"env": {}
+    		}
+    	}
+    }
+    ```
+
+5.  **Restart Claude Desktop** after making the configuration change.
+6.  **Test the connection** by asking Claude about your vault: "What files are in my Obsidian vault?"
+
+### Other MCP Clients (with direct HTTP support)
+
+If you are using an MCP client that directly supports the legacy "HTTP with SSE" transport, you can use a simpler configuration without the `mcp-remote` bridge.
+
+**Example Configuration:**
 
 ```json
 {
 	"mcpServers": {
 		"obsidian": {
-			"url": "http://localhost:22360/mcp",
+			"url": "http://localhost:22360/sse",
 			"env": {}
 		}
 	}
 }
 ```
-
-4. **Restart Claude Desktop** after making the configuration change
-5. **Test the connection** by asking Claude about your vault: "What files are in my Obsidian vault?"
-
-**Alternative Endpoints:**
-
--   `http://localhost:22360/sse` - Legacy SSE endpoint (2024-11-05 spec)
--   `http://localhost:22360/mcp` - Same endpoint, different path alias
-
-**MCP Specification Version**: This plugin uses the older MCP specification (2024-11-05) documented at https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse for maximum compatibility. While the newer streamable HTTP transport (2025-03-26) is available, many MCP clients have not yet been updated to support it. We will continue to support the older version indefinitely until the broader ecosystem becomes more compatible.
 
 ### Claude Code CLI
 
@@ -68,22 +80,32 @@ Claude Code automatically discovers and connects to Obsidian vaults through WebS
 
 **Custom Port Setup:**
 
-1. Go to **Obsidian Settings** → **Community Plugins** → **Claude Code** → **Settings**
-2. Change the **"HTTP Server Port"** in the MCP Server Configuration section
-3. **Update your Claude Desktop config** to use the new port:
+1.  Go to **Obsidian Settings** → **Community Plugins** → **Claude Code** → **Settings**
+2.  Change the **"HTTP Server Port"** in the MCP Server Configuration section
+3.  **Update your Claude Desktop config** to use the new port:
     ```json
     {
     	"mcpServers": {
     		"obsidian": {
-    			"url": "http://localhost:YOUR_NEW_PORT/mcp",
+    			"url": "http://localhost:22360/mcp",
     			"env": {}
     		}
     	}
     }
     ```
-4. **Restart Claude Desktop** to apply the changes
+        NOTE: You can change the port in the settings.
+4.  **Restart Claude Desktop** to apply the changes
 
 **Multiple Vaults**: If you run multiple Obsidian vaults with this plugin, each vault needs a unique port. The plugin will automatically detect port conflicts and guide you to configure different ports.
+
+### A Note on MCP Specification Version
+
+_As of 2025-06-09_
+
+> [!IMPORTANT]
+> This plugin intentionally uses an older MCP specification for HTTP transport. The latest ["Streamable HTTP" protocol (2025-03-26)](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) is not yet supported by most MCP clients, including Claude Code and Claude Desktop.
+>
+> To ensure compatibility, we use the legacy ["HTTP with SSE" protocol (2024-11-05)](https://modelcontextprotocol.io/specification/2024-11-05/basic/transports#http-with-sse). Adhering to the newest specification will lead to connection failures with current tools.
 
 ### Troubleshooting
 
@@ -111,19 +133,6 @@ Claude Code automatically discovers and connects to Obsidian vaults through WebS
 This project uses TypeScript to provide type checking and documentation.
 The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
 
-### First time developing plugins?
-
-Quick starting guide for new plugin devs:
-
--   Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
--   Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/claude-code-terminal` folder.
--   Install NodeJS, then run `npm i` in the command line under your repo folder.
--   Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
--   Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
--   Reload Obsidian to load the new version of your plugin.
--   Enable plugin in settings window.
--   For updates to the Obsidian API run `npm update` in the command line under your repo folder.
-
 ### Releasing new releases
 
 -   Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
@@ -131,39 +140,3 @@ Quick starting guide for new plugin devs:
 -   Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
 -   Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
 -   Publish the release.
-
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
-
-### Adding your plugin to the community plugin list
-
--   Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
--   Publish an initial version.
--   Make sure you have a `README.md` file in the root of your repo.
--   Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
-
-## How to use
-
--   Clone this repo.
--   Make sure your NodeJS is at least v16 (`node --version`).
--   `npm i` or `yarn` to install dependencies.
--   `npm run dev` to start compilation in watch mode.
-
-## Manually installing the plugin
-
--   Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/claude-code-terminal/`.
-
-## Improve code quality with eslint (optional)
-
--   [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
--   To use eslint with this project, make sure to install eslint from terminal:
-    -   `npm install -g eslint`
--   To use eslint to analyze this project use this command:
-    -   `eslint main.ts`
-    -   eslint will then create a report with suggestions for code improvement by file and line number.
--   If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-    -   `eslint .\src\`
-
-## API Documentation
-
-See https://github.com/obsidianmd/obsidian-api
