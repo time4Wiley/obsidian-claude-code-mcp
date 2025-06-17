@@ -82,6 +82,9 @@ export default class ClaudeMcpPlugin extends Plugin {
 				process.cwd();
 			console.debug(`[MCP] Vault base path: ${basePath}`);
 			this.mcpServer.updateWorkspaceFolders(basePath);
+			
+			// Validate tool registration
+			this.mcpServer.validateToolRegistration();
 
 			// Show success notification
 			const wsStatus = serverInfo.wsPort

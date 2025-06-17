@@ -21,18 +21,22 @@ This is an Obsidian plugin that implements MCP (Model Context Protocol) servers 
 - **main.ts** - Plugin entry point that orchestrates initialization, settings management, and server lifecycle
 - **src/settings.ts** - Comprehensive settings management with real-time server status display
 - **src/mcp/** - MCP protocol implementation
-  - **dual-server.ts** - Manages both WebSocket and HTTP servers concurrently
+  - **dual-server.ts** - Manages both WebSocket and HTTP servers with tool registry
   - **server.ts** - WebSocket server for Claude Code CLI integration
   - **http-server.ts** - HTTP/SSE server for Claude Desktop (uses MCP spec 2024-11-05)
-  - **handlers.ts** - Request routing and response handling
+  - **handlers.ts** - Request routing with separation of IDE/MCP concerns
   - **types.ts** - TypeScript interfaces for MCP protocol
+- **src/ide/** - Claude Code IDE-specific functionality
+  - **ide-handler.ts** - Handles IDE-specific requests (ide_connected, etc.)
+  - **ide-tools.ts** - IDE-specific tool implementations (openDiff, close_tab, etc.)
+- **src/shared/** - Common functionality
+  - **tool-registry.ts** - Automatic tool registration and validation system
 - **src/obsidian/** - Obsidian API integration
   - **workspace-manager.ts** - Tracks active file and selection using DOM events
   - **utils.ts** - Path normalization and validation utilities
 - **src/tools/** - MCP tool implementations
   - **file-tools.ts** - File read/write operations
-  - **workspace-tools.ts** - Workspace info and vault operations
-  - **tool-definitions.ts** - Tool metadata and parameter schemas
+  - **general-tools.ts** - General workspace and file manipulation tools
 - **src/terminal/** - Optional embedded terminal feature
   - **terminal-view.ts** - Terminal UI implementation using xterm.js
   - **pseudoterminal.ts** - Platform-specific terminal spawning
@@ -58,6 +62,8 @@ This is an Obsidian plugin that implements MCP (Model Context Protocol) servers 
 - **Proper Cleanup** - All event listeners registered via Obsidian's system
 - **Error Boundaries** - Graceful error handling with user notifications
 - **Port Conflict Detection** - Automatic detection with guidance for resolution
+- **Tool Registry** - Automatic tool registration with runtime validation
+- **Separation of Concerns** - IDE-specific code isolated from standard MCP protocol
 
 ## Building and Testing
 
@@ -113,3 +119,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 2. Test thoroughly with both Claude Code and Claude Desktop
 3. Create GitHub release with version tag
 4. Upload `manifest.json`, `main.js`, and `styles.css` as assets
+
+## Coding Guidelines and Best Practices
+
+- When refactoring, don't create files with a -refactored suffix, carry out the refactoring as a senior engineer would

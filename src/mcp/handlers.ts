@@ -2,8 +2,9 @@ import { App } from "obsidian";
 import { WebSocket } from "ws";
 import { McpRequest, McpReplyFunction } from "./types";
 import { FileTools } from "../tools/file-tools";
-import { WorkspaceTools } from "../tools/workspace-tools";
 import { WorkspaceManager } from "../obsidian/workspace-manager";
+import { ToolRegistry } from "../shared/tool-registry";
+import { IdeHandler } from "../ide/ide-handler";
 
 // HTTP-compatible reply function type
 export interface HttpMcpReplyFunction {
@@ -12,13 +13,17 @@ export interface HttpMcpReplyFunction {
 
 export class McpHandlers {
 	private fileTools: FileTools;
-	private workspaceTools: WorkspaceTools;
-	private workspaceManager?: WorkspaceManager;
+	private toolRegistry: ToolRegistry;
+	private ideHandler: IdeHandler;
 
-	constructor(private app: App, workspaceManager?: WorkspaceManager) {
+	constructor(
+		private app: App,
+		toolRegistry: ToolRegistry,
+		workspaceManager?: WorkspaceManager
+	) {
 		this.fileTools = new FileTools(app);
-		this.workspaceTools = new WorkspaceTools(app);
-		this.workspaceManager = workspaceManager;
+		this.toolRegistry = toolRegistry;
+		this.ideHandler = new IdeHandler(app, workspaceManager);
 	}
 
 	async handleRequest(sock: WebSocket, req: McpRequest): Promise<void> {
@@ -51,15 +56,16 @@ export class McpHandlers {
 		req: McpRequest,
 		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
+		// First check if it's an IDE-specific method
+		if (this.ideHandler.isIdeMethod(req.method)) {
+			const handled = await this.ideHandler.handleRequest(req, reply);
+			if (handled) return;
+		}
+
+		// Handle standard MCP methods
 		switch (req.method) {
 			case "initialize":
 				return this.handleInitialize(req, reply);
-
-			case "notifications/initialized":
-				return this.handleInitialized(req, reply);
-
-			case "ide_connected":
-				return this.handleIdeConnected(req, reply);
 
 			case "tools/list":
 				return this.handleToolsList(req, reply);
@@ -70,6 +76,7 @@ export class McpHandlers {
 			case "ping":
 				return reply({ result: "pong" });
 
+			// Legacy file operation methods (for backward compatibility)
 			case "readFile":
 				return this.fileTools.handleReadFile(req, reply);
 
@@ -82,14 +89,15 @@ export class McpHandlers {
 			case "listFiles":
 				return this.fileTools.handleListFiles(req, reply);
 
-			case "getWorkspaceInfo":
-				return this.workspaceTools.handleGetWorkspaceInfo(req, reply);
-
 			case "getCurrentFile":
 				return this.fileTools.handleGetCurrentFile(req, reply);
 
+			case "getWorkspaceInfo":
+				return this.handleGetWorkspaceInfo(req, reply);
+
+			// Standard MCP tool call
 			case "tools/call":
-				return this.workspaceTools.handleToolCall(req, reply);
+				return this.toolRegistry.handleToolCall(req, reply);
 
 			case "resources/list":
 				return this.handleResourcesList(req, reply);
@@ -145,32 +153,13 @@ export class McpHandlers {
 		}
 	}
 
-	private async handleInitialized(
-		req: McpRequest,
-		reply: McpReplyFunction | HttpMcpReplyFunction
-	): Promise<void> {
-		// No response needed for notifications
-		// Send initial file context when Claude connects
-		setTimeout(() => {
-			console.debug("[MCP] Sending initial file context");
-			this.workspaceManager?.sendInitialContext();
-		}, 200);
-	}
-
-	private async handleIdeConnected(
-		req: McpRequest,
-		reply: McpReplyFunction | HttpMcpReplyFunction
-	): Promise<void> {
-		const { pid } = req.params || {};
-		// No response needed for notifications
-	}
 
 	private async handleToolsList(
 		req: McpRequest,
 		reply: McpReplyFunction | HttpMcpReplyFunction
 	): Promise<void> {
 		try {
-			const tools = this.workspaceTools.getToolDefinitions();
+			const tools = this.toolRegistry.getToolDefinitions();
 			reply({
 				result: {
 					tools: tools,
@@ -224,6 +213,34 @@ export class McpHandlers {
 				error: {
 					code: -32603,
 					message: `failed to list resources: ${error.message}`,
+				},
+			});
+		}
+	}
+
+	private async handleGetWorkspaceInfo(
+		req: McpRequest,
+		reply: McpReplyFunction | HttpMcpReplyFunction
+	): Promise<void> {
+		try {
+			const vaultName = this.app.vault.getName();
+			const basePath =
+				(this.app.vault.adapter as any).getBasePath?.() || "unknown";
+			const fileCount = this.app.vault.getFiles().length;
+
+			reply({
+				result: {
+					name: vaultName,
+					path: basePath,
+					fileCount,
+					type: "obsidian-vault",
+				},
+			});
+		} catch (error) {
+			reply({
+				error: {
+					code: -32603,
+					message: `failed to get workspace info: ${error.message}`,
 				},
 			});
 		}

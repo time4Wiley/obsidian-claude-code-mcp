@@ -5,6 +5,9 @@ import { McpHttpServer, McpHttpServerConfig } from "./http-server";
 import { McpHandlers } from "./handlers";
 import { McpRequest, McpNotification } from "./types";
 import { WorkspaceManager } from "../obsidian/workspace-manager";
+import { ToolRegistry } from "../shared/tool-registry";
+import { GeneralTools, GENERAL_TOOL_DEFINITIONS } from "../tools/general-tools";
+import { IdeTools, IDE_TOOL_DEFINITIONS } from "../ide/ide-tools";
 
 export interface DualServerConfig {
 	app: App;
@@ -20,10 +23,63 @@ export class McpDualServer {
 	private httpServer?: McpHttpServer;
 	private handlers: McpHandlers;
 	private config: DualServerConfig;
+	private toolRegistry: ToolRegistry;
 
 	constructor(config: DualServerConfig) {
 		this.config = config;
-		this.handlers = new McpHandlers(config.app, config.workspaceManager);
+		
+		// Initialize tool registry
+		this.toolRegistry = new ToolRegistry();
+		this.registerTools();
+		
+		// Initialize handlers with the tool registry
+		this.handlers = new McpHandlers(
+			config.app,
+			this.toolRegistry,
+			config.workspaceManager
+		);
+	}
+
+	private registerTools(): void {
+		// Register general tools
+		const generalTools = new GeneralTools(this.config.app);
+		const generalImplementations = generalTools.createImplementations();
+
+		for (let i = 0; i < GENERAL_TOOL_DEFINITIONS.length; i++) {
+			const definition = GENERAL_TOOL_DEFINITIONS[i];
+			const implementation = generalImplementations[i];
+			
+			if (!implementation || definition.name !== implementation.name) {
+				throw new Error(
+					`Tool definition and implementation mismatch for ${definition.name}`
+				);
+			}
+			
+			this.toolRegistry.register(definition, implementation);
+		}
+
+		// Register IDE-specific tools
+		const ideTools = new IdeTools(this.config.app);
+		const ideImplementations = ideTools.createImplementations();
+		
+		for (let i = 0; i < IDE_TOOL_DEFINITIONS.length; i++) {
+			const definition = IDE_TOOL_DEFINITIONS[i];
+			const implementation = ideImplementations[i];
+			
+			if (!implementation || definition.name !== implementation.name) {
+				throw new Error(
+					`Tool definition and implementation mismatch for ${definition.name}`
+				);
+			}
+			
+			this.toolRegistry.register(definition, implementation);
+		}
+
+		// Log registered tools for debugging
+		console.debug(
+			"[McpDualServer] Registered tools:",
+			this.toolRegistry.getRegisteredToolNames()
+		);
 	}
 
 	async start(): Promise<{ wsPort?: number; httpPort?: number }> {
@@ -145,5 +201,26 @@ export class McpDualServer {
 			wsClients: this.wsClientCount,
 			httpClients: this.httpClientCount,
 		};
+	}
+
+	/**
+	 * Get tool definitions for a specific category
+	 */
+	getToolsByCategory(category: string): import("./types").Tool[] {
+		return this.toolRegistry.getToolDefinitions(category);
+	}
+
+	/**
+	 * Check if all tools are properly registered
+	 */
+	validateToolRegistration(): void {
+		const registeredNames = this.toolRegistry.getRegisteredToolNames();
+		console.log("[McpDualServer] Tool validation:", {
+			totalRegistered: registeredNames.length,
+			generalTools: this.toolRegistry.getToolDefinitions("general").length + 
+						  this.toolRegistry.getToolDefinitions("file").length + 
+						  this.toolRegistry.getToolDefinitions("workspace").length,
+			ideTools: this.toolRegistry.getToolDefinitions("ide-specific").length,
+		});
 	}
 }
