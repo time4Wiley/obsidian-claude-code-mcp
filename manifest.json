@@ -1,6 +1,6 @@
 {
-	"id": "claude-code-editor-mcp",
-	"name": "Claude Code Editor & MCP",
+	"id": "claude-code-mcp",
+	"name": "Claude Code MCP",
 	"minAppVersion": "1.0.0",
 	"version": "1.1.5",
 	"description": "Connect Claude Code and other AI tools to your notes using Model Context Protocol (MCP).",

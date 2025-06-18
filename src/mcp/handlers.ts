@@ -146,7 +146,7 @@ export class McpHandlers {
 						},
 					},
 					serverInfo: {
-						name: "obsidian-claude-code",
+						name: "obsidian-claude-code-mcp",
 						version: "1.0.0",
 					},
 				},
