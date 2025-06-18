@@ -10,24 +10,33 @@ export interface ToolDefinition extends Tool {
 }
 
 export class ToolRegistry {
-	private tools = new Map<string, {
-		definition: ToolDefinition;
-		implementation: ToolImplementation;
-	}>();
+	private tools = new Map<
+		string,
+		{
+			definition: ToolDefinition;
+			implementation: ToolImplementation;
+		}
+	>();
 
-	register(definition: ToolDefinition, implementation: ToolImplementation): void {
+	register(
+		definition: ToolDefinition,
+		implementation: ToolImplementation
+	): void {
 		if (definition.name !== implementation.name) {
 			throw new Error(
 				`Tool definition name "${definition.name}" doesn't match implementation name "${implementation.name}"`
 			);
 		}
-		
+
 		this.tools.set(definition.name, { definition, implementation });
 	}
 
-	async handleToolCall(req: McpRequest, reply: McpReplyFunction): Promise<void> {
+	async handleToolCall(
+		req: McpRequest,
+		reply: McpReplyFunction
+	): Promise<void> {
 		const { name, arguments: args } = req.params || {};
-		
+
 		const tool = this.tools.get(name);
 		if (!tool) {
 			console.error(`[ToolRegistry] Unknown tool called: ${name}`, args);

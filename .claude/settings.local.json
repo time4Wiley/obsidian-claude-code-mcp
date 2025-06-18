@@ -19,7 +19,10 @@
       "Bash(npx eslint:*)",
       "WebFetch(domain:spec.modelcontextprotocol.io)",
       "Bash(rg:*)",
-      "WebFetch(domain:docs.obsidian.md)"
+      "WebFetch(domain:docs.obsidian.md)",
+      "Bash(jq:*)",
+      "Bash(npm version:*)",
+      "Bash(git tag:*)"
     ],
     "deny": []
   }
