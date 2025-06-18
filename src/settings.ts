@@ -52,6 +52,8 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 						this.plugin.settings.enableWebSocketServer = value;
 						await this.plugin.saveSettings();
 						await this.plugin.restartMcpServer();
+						// Refresh the display to show updated status
+						this.display();
 					})
 			);
 
@@ -67,31 +69,46 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 						this.plugin.settings.enableHttpServer = value;
 						await this.plugin.saveSettings();
 						await this.plugin.restartMcpServer();
+						// Refresh the display to show updated status
+						this.display();
 					})
 			);
 
 		new Setting(containerEl)
 			.setName("HTTP Server Port")
 			.setDesc(
-				"Port for the HTTP/SSE MCP server. Default is 22360 to avoid conflicts with common dev services. The server will restart automatically when changed."
+				"Port for the HTTP/SSE MCP server. Default is 22360 to avoid conflicts with common dev services. Changes will apply when you leave this field."
 			)
-			.addText((text) =>
+			.addText((text) => {
 				text
 					.setPlaceholder("22360")
 					.setValue(this.plugin.settings.mcpHttpPort.toString())
 					.onChange(async (value) => {
 						const port = parseInt(value);
 						if (isNaN(port) || port < 1024 || port > 65535) {
-							text.setValue(
-								this.plugin.settings.mcpHttpPort.toString()
-							);
 							return;
 						}
+						// Only save the setting, don't restart the server yet
 						this.plugin.settings.mcpHttpPort = port;
 						await this.plugin.saveSettings();
+					});
+				
+				// Restart server only on blur
+				text.inputEl.addEventListener("blur", async () => {
+					const value = text.getValue();
+					const port = parseInt(value);
+					if (isNaN(port) || port < 1024 || port > 65535) {
+						text.setValue(this.plugin.settings.mcpHttpPort.toString());
+						return;
+					}
+					// Only restart if the server is enabled
+					if (this.plugin.settings.enableHttpServer) {
 						await this.plugin.restartMcpServer();
-					})
-			);
+						// Refresh the display to show updated status
+						this.display();
+					}
+				});
+			});
 
 		// Terminal Configuration Section
 		containerEl.createEl("h3", { text: "Terminal Configuration" });
