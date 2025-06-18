@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from "child_process";
-import { Terminal } from "xterm";
+import { Terminal } from "@xterm/xterm";
 import { Writable } from "stream";
 import unixPseudoterminalPy from "./unix_pseudoterminal.py";
 
