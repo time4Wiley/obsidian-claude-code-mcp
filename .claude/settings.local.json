@@ -18,7 +18,8 @@
       "Bash(eslint:*)",
       "Bash(npx eslint:*)",
       "WebFetch(domain:spec.modelcontextprotocol.io)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "WebFetch(domain:docs.obsidian.md)"
     ],
     "deny": []
   }
