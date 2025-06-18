@@ -7,6 +7,7 @@
 
 # npm
 node_modules
+package-lock.json
 
 # Don't include the compiled main.js file in the repo.
 # They should be uploaded to GitHub releases instead.
@@ -21,8 +22,24 @@ data.json
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store
 
+# Development artifacts
+tmp/
+*.backup
+*.patch
+*-refactored.*
+REFACTORING_GUIDE.md
+migrate-to-refactored.sh
+main-refactored.patch
 
-tmp
+# Testing and development files
+test-*.js
+terminal-pty-research.md
+plan.md
 
+# Build artifacts
+*.tsbuildinfo
+
+# IDE files
+*.log
 
 .env
