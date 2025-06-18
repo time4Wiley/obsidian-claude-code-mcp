@@ -13,16 +13,19 @@ export interface HttpMcpReplyFunction {
 
 export class McpHandlers {
 	private fileTools: FileTools;
-	private toolRegistry: ToolRegistry;
+	private wsToolRegistry: ToolRegistry;  // WebSocket/IDE tools
+	private httpToolRegistry: ToolRegistry; // HTTP/MCP tools
 	private ideHandler: IdeHandler;
 
 	constructor(
 		private app: App,
-		toolRegistry: ToolRegistry,
+		wsToolRegistry: ToolRegistry,
+		httpToolRegistry: ToolRegistry,
 		workspaceManager?: WorkspaceManager
 	) {
 		this.fileTools = new FileTools(app);
-		this.toolRegistry = toolRegistry;
+		this.wsToolRegistry = wsToolRegistry;
+		this.httpToolRegistry = httpToolRegistry;
 		this.ideHandler = new IdeHandler(app, workspaceManager);
 	}
 
@@ -41,7 +44,8 @@ export class McpHandlers {
 			sock.send(response);
 		};
 
-		return this.handleRequestGeneric(req, reply);
+		// WebSocket requests use the WebSocket tool registry
+		return this.handleRequestGeneric(req, reply, "ws");
 	}
 
 	async handleHttpRequest(
@@ -49,12 +53,14 @@ export class McpHandlers {
 		reply: HttpMcpReplyFunction
 	): Promise<void> {
 		console.debug(`[MCP HTTP] Handling request: ${req.method}`, req.params);
-		return this.handleRequestGeneric(req, reply);
+		// HTTP requests use the HTTP tool registry
+		return this.handleRequestGeneric(req, reply, "http");
 	}
 
 	private async handleRequestGeneric(
 		req: McpRequest,
-		reply: McpReplyFunction | HttpMcpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction,
+		source: "ws" | "http"
 	): Promise<void> {
 		// First check if it's an IDE-specific method
 		if (this.ideHandler.isIdeMethod(req.method)) {
@@ -68,7 +74,7 @@ export class McpHandlers {
 				return this.handleInitialize(req, reply);
 
 			case "tools/list":
-				return this.handleToolsList(req, reply);
+				return this.handleToolsList(req, reply, source);
 
 			case "prompts/list":
 				return this.handlePromptsList(req, reply);
@@ -97,7 +103,9 @@ export class McpHandlers {
 
 			// Standard MCP tool call
 			case "tools/call":
-				return this.toolRegistry.handleToolCall(req, reply);
+				// Use the appropriate tool registry based on request source
+				const toolRegistry = source === "ws" ? this.wsToolRegistry : this.httpToolRegistry;
+				return toolRegistry.handleToolCall(req, reply);
 
 			case "resources/list":
 				return this.handleResourcesList(req, reply);
@@ -156,10 +164,13 @@ export class McpHandlers {
 
 	private async handleToolsList(
 		req: McpRequest,
-		reply: McpReplyFunction | HttpMcpReplyFunction
+		reply: McpReplyFunction | HttpMcpReplyFunction,
+		source: "ws" | "http"
 	): Promise<void> {
 		try {
-			const tools = this.toolRegistry.getToolDefinitions();
+			// Use the appropriate tool registry based on request source
+			const toolRegistry = source === "ws" ? this.wsToolRegistry : this.httpToolRegistry;
+			const tools = toolRegistry.getToolDefinitions();
 			reply({
 				result: {
 					tools: tools,

@@ -23,25 +23,28 @@ export class McpDualServer {
 	private httpServer?: McpHttpServer;
 	private handlers: McpHandlers;
 	private config: DualServerConfig;
-	private toolRegistry: ToolRegistry;
+	private wsToolRegistry: ToolRegistry;  // For WebSocket/IDE tools
+	private httpToolRegistry: ToolRegistry; // For HTTP/MCP tools
 
 	constructor(config: DualServerConfig) {
 		this.config = config;
 		
-		// Initialize tool registry
-		this.toolRegistry = new ToolRegistry();
+		// Initialize separate tool registries
+		this.wsToolRegistry = new ToolRegistry();
+		this.httpToolRegistry = new ToolRegistry();
 		this.registerTools();
 		
-		// Initialize handlers with the tool registry
+		// Initialize handlers with both tool registries
 		this.handlers = new McpHandlers(
 			config.app,
-			this.toolRegistry,
+			this.wsToolRegistry,
+			this.httpToolRegistry,
 			config.workspaceManager
 		);
 	}
 
 	private registerTools(): void {
-		// Register general tools
+		// Register general tools to BOTH registries (available for both IDE and MCP)
 		const generalTools = new GeneralTools(this.config.app);
 		const generalImplementations = generalTools.createImplementations();
 
@@ -55,10 +58,12 @@ export class McpDualServer {
 				);
 			}
 			
-			this.toolRegistry.register(definition, implementation);
+			// Register to both WebSocket and HTTP registries
+			this.wsToolRegistry.register(definition, implementation);
+			this.httpToolRegistry.register(definition, implementation);
 		}
 
-		// Register IDE-specific tools
+		// Register IDE-specific tools ONLY to WebSocket registry
 		const ideTools = new IdeTools(this.config.app);
 		const ideImplementations = ideTools.createImplementations();
 		
@@ -72,13 +77,18 @@ export class McpDualServer {
 				);
 			}
 			
-			this.toolRegistry.register(definition, implementation);
+			// Only register to WebSocket registry (IDE-specific)
+			this.wsToolRegistry.register(definition, implementation);
 		}
 
 		// Log registered tools for debugging
 		console.debug(
-			"[McpDualServer] Registered tools:",
-			this.toolRegistry.getRegisteredToolNames()
+			"[McpDualServer] WebSocket/IDE tools:",
+			this.wsToolRegistry.getRegisteredToolNames()
+		);
+		console.debug(
+			"[McpDualServer] HTTP/MCP tools:",
+			this.httpToolRegistry.getRegisteredToolNames()
 		);
 	}
 
@@ -206,21 +216,29 @@ export class McpDualServer {
 	/**
 	 * Get tool definitions for a specific category
 	 */
-	getToolsByCategory(category: string): import("./types").Tool[] {
-		return this.toolRegistry.getToolDefinitions(category);
+	getToolsByCategory(category: string, serverType: "ws" | "http" = "ws"): import("./types").Tool[] {
+		const registry = serverType === "ws" ? this.wsToolRegistry : this.httpToolRegistry;
+		return registry.getToolDefinitions(category);
 	}
 
 	/**
 	 * Check if all tools are properly registered
 	 */
 	validateToolRegistration(): void {
-		const registeredNames = this.toolRegistry.getRegisteredToolNames();
-		console.log("[McpDualServer] Tool validation:", {
-			totalRegistered: registeredNames.length,
-			generalTools: this.toolRegistry.getToolDefinitions("general").length + 
-						  this.toolRegistry.getToolDefinitions("file").length + 
-						  this.toolRegistry.getToolDefinitions("workspace").length,
-			ideTools: this.toolRegistry.getToolDefinitions("ide-specific").length,
+		console.log("[McpDualServer] Tool validation:");
+		console.log("  WebSocket/IDE tools:", {
+			total: this.wsToolRegistry.getRegisteredToolNames().length,
+			general: this.wsToolRegistry.getToolDefinitions("general").length + 
+					 this.wsToolRegistry.getToolDefinitions("file").length + 
+					 this.wsToolRegistry.getToolDefinitions("workspace").length,
+			ideSpecific: this.wsToolRegistry.getToolDefinitions("ide-specific").length,
+		});
+		console.log("  HTTP/MCP tools:", {
+			total: this.httpToolRegistry.getRegisteredToolNames().length,
+			general: this.httpToolRegistry.getToolDefinitions("general").length + 
+					 this.httpToolRegistry.getToolDefinitions("file").length + 
+					 this.httpToolRegistry.getToolDefinitions("workspace").length,
+			ideSpecific: this.httpToolRegistry.getToolDefinitions("ide-specific").length,
 		});
 	}
 }

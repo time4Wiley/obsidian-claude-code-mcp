@@ -128,6 +128,56 @@ _As of 2025-06-09_
 -   Update client configurations to match the new port
 -   Common alternative ports: 22361, 22362, 8080, 9090
 
+## Tool Architecture
+
+This plugin implements a flexible tool system that allows different tools to be exposed to different MCP clients:
+
+### Tool Categories
+
+1. **Shared Tools** (available to both IDE and MCP clients):
+   - File operations: `view`, `str_replace`, `create`, `insert`
+   - Workspace operations: `get_current_file`, `get_workspace_files`
+   - Obsidian API access: `obsidian_api`
+
+2. **IDE-specific Tools** (only available via Claude Code WebSocket):
+   - `getDiagnostics` - System and vault diagnostics
+   - `openDiff` - Diff view operations (stub for Obsidian)
+   - `close_tab` - Tab management (stub for Obsidian)
+   - `closeAllDiffTabs` - Bulk tab operations (stub for Obsidian)
+
+3. **MCP-only Tools** (only available via HTTP/SSE):
+   - Currently none, but the architecture supports adding them
+
+### Adding New Tools
+
+To add a new tool to the plugin:
+
+#### For Shared Tools (available to both IDE and MCP):
+1. Add the tool definition to `src/tools/general-tools.ts` in the `GENERAL_TOOL_DEFINITIONS` array
+2. Add the implementation in the `createImplementations()` method of `GeneralTools` class
+3. The tool will automatically be available to both WebSocket and HTTP clients
+
+#### For IDE-specific Tools:
+1. Add the tool definition to `src/ide/ide-tools.ts` in the `IDE_TOOL_DEFINITIONS` array
+2. Add the implementation in the `createImplementations()` method of `IdeTools` class
+3. The tool will only be available to Claude Code via WebSocket
+
+#### For MCP-only Tools:
+1. Add the tool definition to `src/tools/mcp-only-tools.ts` in the `MCP_ONLY_TOOL_DEFINITIONS` array
+2. Create an implementation class similar to `GeneralTools` or `IdeTools`
+3. Update `src/mcp/dual-server.ts` to register the tools only to the HTTP registry
+
+### Tool Registration Flow
+
+The plugin uses a dual registry system:
+- **WebSocket Registry**: Contains shared tools + IDE-specific tools
+- **HTTP Registry**: Contains shared tools + MCP-only tools
+
+This separation ensures that:
+- Claude Code gets access to IDE-specific functionality
+- Standard MCP clients only see appropriate tools
+- Shared functionality is available to all clients
+
 ## Development
 
 This project uses TypeScript to provide type checking and documentation.

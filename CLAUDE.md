@@ -44,12 +44,21 @@ This is an Obsidian plugin that implements MCP (Model Context Protocol) servers 
 
 ### MCP Tools Implemented
 
+**Available for both IDE and MCP:**
 - `readFile` - Read file contents from vault
 - `writeFile` - Write content to vault files
 - `getOpenFiles` - Return currently active file
 - `listFiles` - List files in vault with filtering
 - `getWorkspaceInfo` - Return vault metadata
 - `obsidian_api` - Execute Obsidian API commands
+- `view` - View file contents with optional line ranges
+- `str_replace` - Replace text in files
+- `create` - Create new files
+- `insert` - Insert text at specific line numbers
+- `get_current_file` - Get the currently active file
+- `get_workspace_files` - List all files in vault
+
+**IDE-specific tools (WebSocket only):**
 - `getDiagnostics` - Return file diagnostics
 - `openDiff` - Open diff view for file changes
 - `close_tab` - Close specific tabs
@@ -64,6 +73,7 @@ This is an Obsidian plugin that implements MCP (Model Context Protocol) servers 
 - **Port Conflict Detection** - Automatic detection with guidance for resolution
 - **Tool Registry** - Automatic tool registration with runtime validation
 - **Separation of Concerns** - IDE-specific code isolated from standard MCP protocol
+- **Dual Tool Registries** - Separate tool sets for WebSocket/IDE vs HTTP/MCP servers
 
 ## Building and Testing
 
