@@ -22,7 +22,10 @@
       "WebFetch(domain:docs.obsidian.md)",
       "Bash(jq:*)",
       "Bash(npm version:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

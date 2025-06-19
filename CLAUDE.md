@@ -125,7 +125,19 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## Release Process
 
-1. Run `bun run version patch/minor/major`
+### Patch Releases (Bug Fixes)
+For patch releases, use the automated process:
+1. Commit your changes with conventional commit messages
+2. Run `npm version patch` (handles version bumping and tagging)
+3. Run `bun run build` to create production build
+4. Push with `git push && git push --tags`
+5. Create GitHub release with `gh release create` including the three required files
+
+See `docs/AUTOMATED_PATCH_RELEASE.md` for detailed steps.
+
+### Minor/Major Releases
+For minor and major releases, follow the manual process in `docs/RELEASE_CHECKLIST.md`:
+1. Run `bun run version minor/major`
 2. Test thoroughly with both Claude Code and Claude Desktop
 3. Create GitHub release with version tag
 4. Upload `manifest.json`, `main.js`, and `styles.css` as assets
@@ -133,3 +145,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ## Coding Guidelines and Best Practices
 
 - When refactoring, don't create files with a -refactored suffix, carry out the refactoring as a senior engineer would
+
+## Memories
+
+- be sure to read patch release process from CLAUDE.md prior to creating a new release
