@@ -1,5 +1,6 @@
 import { App, PluginSettingTab, Setting, Notice } from "obsidian";
 import ClaudeMcpPlugin from "../main";
+import { getClaudeConfigDir } from "./claude-config";
 
 export interface ClaudeCodeSettings {
 	autoCloseTerminalOnClaudeExit: boolean;
@@ -200,9 +201,10 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 			const wsDetails = wsContainer.createEl("div", {
 				cls: "status-details",
 			});
+			const configDir = getClaudeConfigDir();
 			wsDetails.innerHTML = `
 				<div>• Auto-discovery enabled via lock files</div>
-				<div>• Lock file: <code>~/.claude/ide/${serverInfo.wsPort}.lock</code></div>
+				<div>• Lock file: <code>${configDir}/ide/${serverInfo.wsPort}.lock</code></div>
 				<div>• Use <code>claude</code> CLI and select "Obsidian" from <code>/ide</code> list</div>
 			`;
 		} else if (!this.plugin.settings.enableWebSocketServer) {

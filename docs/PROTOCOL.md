@@ -10,9 +10,15 @@ Claude Code uses a custom WebSocket-based variant of the Model Context Protocol 
 
 ### Lock File System
 
-Claude Code discovers IDE instances through lock files stored in `~/.claude/ide/`:
+Claude Code discovers IDE instances through lock files stored in the Claude configuration directory's `ide` subdirectory. The config directory is resolved in the following order:
 
-1. **Lock File Location**: `~/.claude/ide/[port].lock`
+1. `$CLAUDE_CONFIG_DIR/ide/` (if CLAUDE_CONFIG_DIR env var is set)
+2. `$XDG_CONFIG_HOME/claude/ide/` or `~/.config/claude/ide/` (new default since v1.0.30)
+3. `~/.claude/ide/` (legacy location, used as fallback)
+
+The actual location depends on which directory exists or which Claude Code creates:
+
+1. **Lock File Location**: `<claude-config-dir>/ide/[port].lock`
 2. **Naming Convention**: The filename MUST be the WebSocket port number
 3. **File Format**: JSON containing connection metadata
 
@@ -48,7 +54,7 @@ const port = server.address().port;
 ### Connection Flow
 
 1. IDE creates WebSocket server on random port (typically 10000-65535)
-2. IDE writes lock file to `~/.claude/ide/[port].lock`
+2. IDE writes lock file to `<claude-config-dir>/ide/[port].lock`
 3. Claude Code CLI scans lock files and discovers available connections
 4. User selects IDE via `/ide` command in Claude
 5. Claude CLI connects to WebSocket server on discovered port
@@ -258,7 +264,8 @@ For troubleshooting IDE connection issues, refer to this protocol documentation 
    - Ensure port number in filename matches server port
 
 2. **Claude can't discover IDE**:
-   - Verify lock file exists in `~/.claude/ide/`
+   - Verify lock file exists in the correct config directory's `ide/` subdirectory
+   - Check which config directory Claude Code is using (see discovery mechanism above)
    - Check lock file JSON format
    - Ensure `workspaceFolders` contains absolute paths
 
@@ -270,10 +277,16 @@ For troubleshooting IDE connection issues, refer to this protocol documentation 
 ### Debug Tools
 
 ```bash
-# Check lock files
+# Check lock files (try each possible location)
+# Modern location
+ls -la ~/.config/claude/ide/
+# Legacy location
 ls -la ~/.claude/ide/
+# Or if CLAUDE_CONFIG_DIR is set
+ls -la "$CLAUDE_CONFIG_DIR/ide/"
 
-# Verify lock file content
+# Verify lock file content (use the directory that exists)
+cat ~/.config/claude/ide/[port].lock  # or
 cat ~/.claude/ide/[port].lock
 
 # Test WebSocket connectivity

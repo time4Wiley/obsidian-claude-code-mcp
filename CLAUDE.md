@@ -117,7 +117,10 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ## Important Implementation Notes
 
-- **Lock Files**: WebSocket server creates `[port].lock` files in `~/.claude/ide/` for auto-discovery
+- **Lock Files**: WebSocket server creates `[port].lock` files in the Claude config directory for auto-discovery:
+  - Uses `CLAUDE_CONFIG_DIR` environment variable if set
+  - Otherwise `$XDG_CONFIG_HOME/claude/ide/` or `~/.config/claude/ide/` (new default since Claude Code v1.0.30)
+  - Falls back to `~/.claude/ide/` (legacy location)
 - **Path Handling**: All paths normalized via `normalizePath()` utility
 - **Security**: File operations restricted to vault boundaries
 - **Multi-Vault Support**: Each vault needs unique HTTP port

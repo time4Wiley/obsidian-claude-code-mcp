@@ -119,7 +119,10 @@ _As of 2025-06-09_
 **Claude Code not finding vault:**
 
 -   Verify the plugin is enabled in Obsidian
--   Check for `.lock` files in `~/.claude/ide/`
+-   Check for `.lock` files in Claude config directory:
+    -   `$CLAUDE_CONFIG_DIR/ide/` if environment variable is set
+    -   `~/.config/claude/ide/` (default since Claude Code v1.0.30)
+    -   `~/.claude/ide/` (legacy location)
 -   Restart Obsidian if the vault doesn't appear in `/ide` list
 
 **Port conflicts:**

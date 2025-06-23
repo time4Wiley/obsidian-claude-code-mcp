@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import * as fs from "fs";
 import * as path from "path";
 import { McpRequest, McpNotification } from "./types";
+import { getClaudeIdeDir } from "../claude-config";
 
 export interface McpServerConfig {
 	onMessage: (ws: WebSocket, request: McpRequest) => void;
@@ -93,11 +94,7 @@ export class McpServer {
 	}
 
 	private async createLockFile(port: number): Promise<void> {
-		const ideDir = path.join(
-			process.env.HOME || process.env.USERPROFILE || ".",
-			".claude",
-			"ide"
-		);
+		const ideDir = getClaudeIdeDir();
 		fs.mkdirSync(ideDir, { recursive: true });
 
 		this.lockFilePath = path.join(ideDir, `${port}.lock`);
