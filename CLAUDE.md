@@ -16,6 +16,13 @@ This is an Obsidian plugin that implements MCP (Model Context Protocol) servers 
 
 ## Architecture
 
+### Submodules
+
+- **obsidian-api/** - Official Obsidian API types and documentation (git submodule from obsidianmd/obsidian-api)
+  - Provides TypeScript definitions for Obsidian's plugin API
+  - Reference documentation for all available API methods
+  - Updated periodically to match latest Obsidian releases
+
 ### Core Components
 
 - **main.ts** - Plugin entry point that orchestrates initialization, settings management, and server lifecycle
