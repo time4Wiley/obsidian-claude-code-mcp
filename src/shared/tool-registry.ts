@@ -6,7 +6,7 @@ export interface ToolImplementation {
 }
 
 export interface ToolDefinition extends Tool {
-	category: "general" | "ide-specific" | "file" | "workspace";
+	category: "general" | "ide-specific" | "file" | "workspace" | "canvas";
 }
 
 export class ToolRegistry {

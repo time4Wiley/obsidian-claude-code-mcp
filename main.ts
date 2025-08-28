@@ -57,6 +57,7 @@ export default class ClaudeMcpPlugin extends Plugin {
 
 	onunload() {
 		this.mcpServer?.stop();
+		this.workspaceManager?.destroy();
 		this.removeTerminalRibbonIcon();
 	}
 

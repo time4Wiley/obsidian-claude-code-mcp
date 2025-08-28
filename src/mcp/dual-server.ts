@@ -8,6 +8,7 @@ import { WorkspaceManager } from "../obsidian/workspace-manager";
 import { ToolRegistry } from "../shared/tool-registry";
 import { GeneralTools, GENERAL_TOOL_DEFINITIONS } from "../tools/general-tools";
 import { IdeTools, IDE_TOOL_DEFINITIONS } from "../ide/ide-tools";
+import { CanvasTools, CANVAS_TOOL_DEFINITIONS } from "../tools/canvas-tools";
 
 export interface DualServerConfig {
 	app: App;
@@ -61,6 +62,27 @@ export class McpDualServer {
 			// Register to both WebSocket and HTTP registries
 			this.wsToolRegistry.register(definition, implementation);
 			this.httpToolRegistry.register(definition, implementation);
+		}
+
+		// Register canvas tools to BOTH registries if workspace manager is available
+		if (this.config.workspaceManager) {
+			const canvasTools = new CanvasTools(this.config.app, this.config.workspaceManager);
+			const canvasImplementations = canvasTools.createImplementations();
+			
+			for (let i = 0; i < CANVAS_TOOL_DEFINITIONS.length; i++) {
+				const definition = CANVAS_TOOL_DEFINITIONS[i];
+				const implementation = canvasImplementations[i];
+				
+				if (!implementation || definition.name !== implementation.name) {
+					throw new Error(
+						`Tool definition and implementation mismatch for ${definition.name}`
+					);
+				}
+				
+				// Register to both WebSocket and HTTP registries
+				this.wsToolRegistry.register(definition, implementation);
+				this.httpToolRegistry.register(definition, implementation);
+			}
 		}
 
 		// Register IDE-specific tools ONLY to WebSocket registry

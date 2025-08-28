@@ -5,6 +5,7 @@ import {
 	SelectionRange,
 } from "../mcp/types";
 import { getAbsolutePath } from "./utils";
+import { CanvasStateManager } from "../canvas/canvas-state-manager";
 
 export interface WorkspaceManagerConfig {
 	onSelectionChange: (notification: McpNotification) => void;
@@ -12,6 +13,7 @@ export interface WorkspaceManagerConfig {
 
 export class WorkspaceManager {
 	private config: WorkspaceManagerConfig;
+	private canvasStateManager: CanvasStateManager;
 
 	constructor(
 		private app: App,
@@ -19,19 +21,28 @@ export class WorkspaceManager {
 		config: WorkspaceManagerConfig
 	) {
 		this.config = config;
+		this.canvasStateManager = new CanvasStateManager(app);
 	}
 
 	setupListeners(): void {
 		// Listen for active file changes
 		this.plugin.registerEvent(
-			this.app.workspace.on("active-leaf-change", () => {
+			this.app.workspace.on("active-leaf-change", async () => {
+				const activeView = this.app.workspace.getActiveViewOfType(null as any);
+				if (activeView) {
+					await this.canvasStateManager.updateCanvasState(activeView);
+				}
 				this.sendCurrentFileContext();
 			})
 		);
 
 		// Listen for file opens
 		this.plugin.registerEvent(
-			this.app.workspace.on("file-open", () => {
+			this.app.workspace.on("file-open", async () => {
+				const activeView = this.app.workspace.getActiveViewOfType(null as any);
+				if (activeView) {
+					await this.canvasStateManager.updateCanvasState(activeView);
+				}
 				this.sendCurrentFileContext();
 			})
 		);
@@ -190,5 +201,17 @@ export class WorkspaceManager {
 		const basePath =
 			(this.app.vault.adapter as any).getBasePath?.() || process.cwd();
 		return getAbsolutePath(relativePath, basePath);
+	}
+
+	getCanvasState() {
+		return this.canvasStateManager.getState();
+	}
+
+	getCanvasStateManager() {
+		return this.canvasStateManager;
+	}
+
+	destroy(): void {
+		this.canvasStateManager.destroy();
 	}
 }
