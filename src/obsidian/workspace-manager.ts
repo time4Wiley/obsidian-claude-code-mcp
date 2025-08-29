@@ -28,9 +28,9 @@ export class WorkspaceManager {
 		// Listen for active file changes
 		this.plugin.registerEvent(
 			this.app.workspace.on("active-leaf-change", async () => {
-				const activeView = this.app.workspace.getActiveViewOfType(null as any);
-				if (activeView) {
-					await this.canvasStateManager.updateCanvasState(activeView);
+				const activeLeaf = this.app.workspace.activeLeaf;
+				if (activeLeaf?.view) {
+					await this.canvasStateManager.updateCanvasState(activeLeaf.view);
 				}
 				this.sendCurrentFileContext();
 			})
@@ -39,9 +39,9 @@ export class WorkspaceManager {
 		// Listen for file opens
 		this.plugin.registerEvent(
 			this.app.workspace.on("file-open", async () => {
-				const activeView = this.app.workspace.getActiveViewOfType(null as any);
-				if (activeView) {
-					await this.canvasStateManager.updateCanvasState(activeView);
+				const activeLeaf = this.app.workspace.activeLeaf;
+				if (activeLeaf?.view) {
+					await this.canvasStateManager.updateCanvasState(activeLeaf.view);
 				}
 				this.sendCurrentFileContext();
 			})
