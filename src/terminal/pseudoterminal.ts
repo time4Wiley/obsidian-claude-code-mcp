@@ -1,7 +1,19 @@
 import { spawn, ChildProcess } from "child_process";
 import { Terminal } from "@xterm/xterm";
 import { Writable } from "stream";
+import * as fs from "fs";
 import unixPseudoterminalPy from "./unix_pseudoterminal.py";
+
+// Dynamic import for node-pty to handle potential build issues
+let nodePty: any = null;
+try {
+	// Try to load node-pty dynamically
+	// This will work in development and when node-pty is available in production
+	nodePty = require("node-pty");
+	console.debug("[Terminal] node-pty loaded successfully");
+} catch (error) {
+	console.warn("[Terminal] node-pty not available (this is expected if not on Windows or module not installed):", error);
+}
 
 export interface Pseudoterminal {
   readonly shell?: Promise<ChildProcess> | undefined;
@@ -238,4 +250,152 @@ export class ChildProcessPseudoterminal implements Pseudoterminal {
       throw error;
     }
   }
+}
+
+/**
+ * Node-pty based pseudoterminal implementation for Windows
+ * Provides proper PTY support using ConPTY on Windows
+ */
+export class NodePtyPseudoterminal implements Pseudoterminal {
+  private ptyProcess: any; // IPty from node-pty
+  private _onExit: Promise<NodeJS.Signals | number>;
+  
+  public get shell(): Promise<ChildProcess> | undefined {
+    // node-pty doesn't expose a ChildProcess, return undefined
+    return undefined;
+  }
+  
+  public get onExit(): Promise<NodeJS.Signals | number> {
+    return this._onExit;
+  }
+  
+  // Public method to write directly to the PTY
+  public write(data: string): void {
+    this.ptyProcess.write(data);
+  }
+  
+  constructor(args: PseudoterminalArgs) {
+    if (!nodePty) {
+      throw new Error("node-pty is not available");
+    }
+    
+    const cols = 80; // Default columns
+    const rows = 24; // Default rows
+    
+    // Create the PTY process
+    this.ptyProcess = nodePty.spawn(args.executable, args.args || [], {
+      name: args.terminal || "xterm-256color",
+      cols,
+      rows,
+      cwd: args.cwd,
+      env: args.env || process.env,
+      useConpty: process.platform === "win32", // Use ConPTY on Windows
+    });
+    
+    // Set up exit promise
+    this._onExit = new Promise((resolve) => {
+      this.ptyProcess.onExit(({ exitCode, signal }: any) => {
+        resolve(exitCode ?? signal ?? NaN);
+      });
+    });
+    
+    console.debug(`[Terminal] Created node-pty process with PID: ${this.ptyProcess.pid}`);
+  }
+  
+  async pipe(terminal: Terminal): Promise<void> {
+    // Pipe PTY output to terminal
+    this.ptyProcess.onData((data: string) => {
+      try {
+        terminal.write(data);
+      } catch (error) {
+        console.error("[Terminal] Write error:", error);
+      }
+    });
+    
+    // Pipe terminal input to PTY
+    const disposable = terminal.onData((data: string) => {
+      try {
+        this.ptyProcess.write(data);
+      } catch (error) {
+        console.error("[Terminal] Input error:", error);
+      }
+    });
+    
+    // Handle terminal resize
+    const resizeDisposable = terminal.onResize(({ cols, rows }) => {
+      try {
+        this.ptyProcess.resize(cols, rows);
+      } catch (error) {
+        console.warn("[Terminal] Resize failed:", error);
+      }
+    });
+    
+    // Clean up on exit
+    this._onExit.catch(() => {}).finally(() => {
+      disposable.dispose();
+      resizeDisposable.dispose();
+    });
+  }
+  
+  async resize(columns: number, rows: number): Promise<void> {
+    try {
+      this.ptyProcess.resize(columns, rows);
+    } catch (error) {
+      console.warn("[Terminal] Resize failed:", error);
+    }
+  }
+  
+  async kill(): Promise<void> {
+    try {
+      this.ptyProcess.kill();
+    } catch (error) {
+      console.error("[Terminal] Kill failed:", error);
+      throw error;
+    }
+  }
+}
+
+/**
+ * Helper functions for Windows terminal setup
+ */
+export function findGitBash(): string | undefined {
+  const candidates = [
+    process.env.CLAUDE_CODE_GIT_BASH_PATH,
+    "C:\\Program Files\\Git\\bin\\bash.exe",
+    "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
+  ].filter(Boolean) as string[];
+  
+  for (const path of candidates) {
+    try {
+      if (fs.existsSync(path)) {
+        console.debug(`[Terminal] Found Git Bash at: ${path}`);
+        return path;
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+  
+  console.debug("[Terminal] Git Bash not found");
+  return undefined;
+}
+
+export function makeEnvForTerminal(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env = { ...base };
+  
+  // Add terminal identification
+  env.TERM_PROGRAM = "obsidian";
+  env.COLORTERM = "truecolor";
+  
+  // On Windows, help Claude find a POSIX shell
+  if (process.platform === "win32") {
+    const bash = findGitBash();
+    if (bash) {
+      env.SHELL = bash;
+      env.CLAUDE_CODE_GIT_BASH_PATH = bash;
+      console.debug(`[Terminal] Set CLAUDE_CODE_GIT_BASH_PATH to: ${bash}`);
+    }
+  }
+  
+  return env;
 }

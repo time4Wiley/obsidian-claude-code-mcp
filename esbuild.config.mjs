@@ -19,6 +19,7 @@ const buildOptions = {
 	external: [
 		"obsidian",
 		"electron",
+		"node-pty", // External native module
 		"@codemirror/autocomplete",
 		"@codemirror/collab",
 		"@codemirror/commands",

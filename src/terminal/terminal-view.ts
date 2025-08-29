@@ -6,6 +6,9 @@ import {
 	Pseudoterminal,
 	UnixPseudoterminal,
 	ChildProcessPseudoterminal,
+	NodePtyPseudoterminal,
+	makeEnvForTerminal,
+	findGitBash,
 } from "./pseudoterminal";
 import { PythonManager } from "./python-detection";
 import type ClaudeMcpPlugin from "main";
@@ -325,6 +328,54 @@ export class ClaudeTerminalView extends ItemView {
 		args: string[],
 		vaultPath: string
 	): Promise<void> {
+		const isWindows = process.platform === "win32";
+		
+		// Try to use node-pty on Windows for proper PTY support
+		if (isWindows) {
+			try {
+				console.debug("[Terminal] Starting NodePtyPseudoterminal for Windows");
+				
+				// Check if Git Bash is available for better Claude Code CLI support
+				const gitBash = findGitBash();
+				if (gitBash) {
+					console.debug(`[Terminal] Git Bash detected at ${gitBash} - Claude Code CLI should work properly`);
+					this.terminal.write(`[Info] Git Bash detected - Claude Code CLI support enabled\r\n`);
+				}
+				
+				this.pseudoterminal = new NodePtyPseudoterminal({
+					executable: shell,
+					args,
+					cwd: vaultPath,
+					terminal: "xterm-256color",
+					env: this.getTerminalEnv(),
+				});
+				
+				// Pipe pseudoterminal to xterm
+				await this.pseudoterminal.pipe(this.terminal);
+				
+				// Handle exit
+				this.pseudoterminal.onExit
+					.then((exitCode) => {
+						console.debug(`[Terminal] PTY process exited with code ${exitCode}`);
+						if (!this.isDestroyed) {
+							this.terminal.write(
+								`\r\n\r\nShell exited with code ${exitCode}\r\n`
+							);
+						}
+					})
+					.catch((error: unknown) => {
+						console.error("[Terminal] PTY process error:", error);
+					});
+				
+				// Now we can try to launch Claude on Windows with proper PTY support
+				setTimeout(() => this.launchClaude(), 100);
+				return;
+			} catch (error) {
+				console.warn("[Terminal] Failed to use node-pty, falling back to ChildProcessPseudoterminal:", error);
+			}
+		}
+		
+		// Fallback to ChildProcessPseudoterminal for non-Windows or if node-pty fails
 		console.debug("[Terminal] Starting ChildProcessPseudoterminal");
 		
 		this.pseudoterminal = new ChildProcessPseudoterminal({
@@ -352,15 +403,14 @@ export class ClaudeTerminalView extends ItemView {
 				console.error("[Terminal] Child process error:", error);
 			});
 
-		// Auto-launch claude command after a brief delay (Windows doesn't support Claude CLI yet)
-		const isWindows = process.platform === "win32";
+		// Auto-launch claude command after a brief delay (only on non-Windows if using fallback)
 		if (!isWindows) {
 			setTimeout(() => this.launchClaude(), 100);
 		}
 	}
 
 	private getTerminalEnv(): NodeJS.ProcessEnv {
-		return {
+		const baseEnv = {
 			...process.env,
 
 			// These are just taken from the nvim plugin: https://github.com/coder/claudecode.nvim/blob/c1cdcd5a61d5a18f262d5c8c53929e3a27cb7821/lua/claudecode/terminal.lua#L346
@@ -380,6 +430,9 @@ export class ClaudeTerminalView extends ItemView {
 			CLAUDE_CODE_IDE_INTEGRATION: "obsidian",
 			CLAUDE_CODE_INTEGRATED_TERMINAL: "true",
 		};
+		
+		// Apply additional environment setup (Git Bash path on Windows, etc.)
+		return makeEnvForTerminal(baseEnv);
 	}
 
 	private async launchClaude(): Promise<void> {
@@ -398,10 +451,17 @@ export class ClaudeTerminalView extends ItemView {
 				`[Terminal] Auto-launching startup command: ${startupCommand}`
 			);
 			try {
-				const shell = await this.pseudoterminal.shell;
-				if (shell && shell.stdin) {
-					// Launch the configured startup command
-					shell.stdin.write(`${startupCommand}\n`);
+				// Check if this is a NodePtyPseudoterminal (which has a write method)
+				if (this.pseudoterminal instanceof NodePtyPseudoterminal) {
+					// For node-pty, write directly to the PTY
+					(this.pseudoterminal as NodePtyPseudoterminal).write(`${startupCommand}\r`);
+				} else if (this.pseudoterminal.shell) {
+					// For other pseudoterminals with shell property
+					const shell = await this.pseudoterminal.shell;
+					if (shell && shell.stdin) {
+						// Launch the configured startup command
+						shell.stdin.write(`${startupCommand}\n`);
+					}
 				}
 			} catch (error) {
 				console.warn(
