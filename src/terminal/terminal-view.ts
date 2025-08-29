@@ -184,15 +184,41 @@ export class ClaudeTerminalView extends ItemView {
 
 			// Determine shell command based on platform
 			const isWindows = process.platform === "win32";
-			const shell = isWindows
-				? "cmd.exe"
-				: process.env.SHELL || "/bin/zsh";
-			const args = isWindows ? [] : ["-l"];
+			let shell: string;
+			let args: string[];
+			
+			if (isWindows) {
+				// Try PowerShell first, fallback to cmd.exe
+				// PowerShell provides a better terminal experience on Windows
+				shell = process.env.COMSPEC || "cmd.exe";
+				
+				// Check if PowerShell is available
+				const powershellPath = process.env.SystemRoot 
+					? `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`
+					: "powershell.exe";
+				
+				try {
+					// Try to use PowerShell if available
+					const fs = require('fs');
+					if (fs.existsSync(powershellPath)) {
+						shell = powershellPath;
+						args = ["-NoLogo", "-NoProfile"];
+					} else {
+						args = [];
+					}
+				} catch {
+					// Fallback to cmd.exe
+					args = [];
+				}
+			} else {
+				shell = process.env.SHELL || "/bin/zsh";
+				args = ["-l"];
+			}
 
 			console.debug(`[Terminal] Starting shell: ${shell}`, args);
 			console.debug(`[Terminal] Working directory: ${vaultPath}`);
 
-			// Try Python PTY approach first
+			// Try Python PTY approach first (Unix-like systems only)
 			if (this.pythonManager.isAvailable() && !isWindows) {
 				try {
 					console.debug("[Terminal] Using Python PTY approach");
@@ -216,6 +242,15 @@ export class ClaudeTerminalView extends ItemView {
 						"[Terminal] Windows platform, using child_process fallback"
 					);
 				}
+			}
+			
+			// Fallback to ChildProcessPseudoterminal for Windows or when Python is not available
+			try {
+				console.debug("[Terminal] Using child_process fallback approach");
+				await this.startChildProcessPTY(shell, args, vaultPath);
+			} catch (error) {
+				console.error("[Terminal] Child process fallback failed:", error);
+				this.terminal.write(`Failed to start terminal: ${error.message}\r\n`);
 			}
 		} catch (error: any) {
 			console.error("[Terminal] Failed to start shell:", error);
@@ -261,6 +296,45 @@ export class ClaudeTerminalView extends ItemView {
 
 		// Auto-launch claude command after a brief delay
 		setTimeout(() => this.launchClaude(), 100);
+	}
+
+	private async startChildProcessPTY(
+		shell: string,
+		args: string[],
+		vaultPath: string
+	): Promise<void> {
+		console.debug("[Terminal] Starting ChildProcessPseudoterminal");
+		
+		this.pseudoterminal = new ChildProcessPseudoterminal({
+			executable: shell,
+			args,
+			cwd: vaultPath,
+			terminal: "xterm-256color",
+			env: this.getTerminalEnv(),
+		});
+
+		// Pipe pseudoterminal to xterm
+		await this.pseudoterminal.pipe(this.terminal);
+
+		// Handle exit
+		this.pseudoterminal.onExit
+			.then((exitCode) => {
+				console.debug(`[Terminal] Child process exited with code ${exitCode}`);
+				if (!this.isDestroyed) {
+					this.terminal.write(
+						`\r\n\r\nShell exited with code ${exitCode}\r\n`
+					);
+				}
+			})
+			.catch((error: unknown) => {
+				console.error("[Terminal] Child process error:", error);
+			});
+
+		// Auto-launch claude command after a brief delay (Windows doesn't support Claude CLI yet)
+		const isWindows = process.platform === "win32";
+		if (!isWindows) {
+			setTimeout(() => this.launchClaude(), 100);
+		}
 	}
 
 	private getTerminalEnv(): NodeJS.ProcessEnv {

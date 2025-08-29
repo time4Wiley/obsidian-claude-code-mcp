@@ -154,26 +154,47 @@ export class ChildProcessPseudoterminal implements Pseudoterminal {
 
   private async spawnChildProcess(args: PseudoterminalArgs): Promise<ChildProcess> {
     const isWindows = process.platform === "win32";
-    const shell = isWindows ? "cmd.exe" : args.executable;
-    const shellArgs = isWindows ? [] : (args.args || []);
+    
+    // On Windows, use the provided executable (which will be PowerShell or cmd.exe)
+    // On Unix, use the provided executable
+    const shell = args.executable;
+    const shellArgs = args.args || [];
 
-    return spawn(shell, shellArgs, {
+    const child = spawn(shell, shellArgs, {
       cwd: args.cwd,
       env: {
         ...process.env,
         ...args.env,
-        TERM: args.terminal || "xterm-256color",
+        TERM: isWindows ? undefined : (args.terminal || "xterm-256color"),
       },
       stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: false, // Show the window on Windows for debugging
     });
+
+    // Set encoding for Windows to handle output properly
+    if (isWindows) {
+      child.stdout?.setEncoding('utf8');
+      child.stderr?.setEncoding('utf8');
+    }
+
+    return child;
   }
 
   async pipe(terminal: Terminal): Promise<void> {
     const shell = await this.shell;
+    const isWindows = process.platform === "win32";
     
     const reader = (chunk: Buffer | string): void => {
       try {
-        terminal.write(chunk.toString());
+        let output = chunk.toString();
+        
+        // On Windows, normalize line endings for proper display
+        if (isWindows) {
+          // Convert standalone CR to CRLF, and ensure we don't double-convert
+          output = output.replace(/\r(?!\n)/g, "\r\n");
+        }
+        
+        terminal.write(output);
       } catch (error: unknown) {
         console.error("[Terminal] Write error:", error);
       }
@@ -187,6 +208,10 @@ export class ChildProcessPseudoterminal implements Pseudoterminal {
     const disposable = terminal.onData(async (data: string) => {
       try {
         if (shell.stdin) {
+          // On Windows, convert Enter key (CR) to CRLF for proper command execution
+          if (isWindows && data === "\r") {
+            data = "\r\n";
+          }
           await writePromise(shell.stdin, data);
         }
       } catch (error) {
