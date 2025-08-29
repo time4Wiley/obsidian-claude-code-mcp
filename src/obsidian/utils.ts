@@ -1,6 +1,9 @@
 export function normalizePath(path: string): string | null {
+	// Normalize Windows backslashes to forward slashes
+	let normalized = path.replace(/\\/g, '/');
+	
 	// Remove leading slash if present (vault-relative paths)
-	const cleaned = path.startsWith("/") ? path.slice(1) : path;
+	const cleaned = normalized.startsWith("/") ? normalized.slice(1) : normalized;
 
 	// Basic validation - no directory traversal
 	if (cleaned.includes("..") || cleaned.includes("~")) {
@@ -11,5 +14,8 @@ export function normalizePath(path: string): string | null {
 }
 
 export function getAbsolutePath(relativePath: string, basePath: string): string {
-	return `${basePath}/${relativePath}`;
+	// Use forward slashes for consistency across platforms
+	const normalizedBase = basePath.replace(/\\/g, '/');
+	const normalizedRelative = relativePath.replace(/\\/g, '/');
+	return `${normalizedBase}/${normalizedRelative}`;
 }

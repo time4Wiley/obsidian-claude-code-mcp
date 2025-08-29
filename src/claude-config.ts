@@ -18,7 +18,37 @@ export function getClaudeConfigDir(): string {
     }
 
     const homeDir = os.homedir();
+    const isWindows = process.platform === 'win32';
 
+    // Windows-specific configuration
+    if (isWindows) {
+        // On Windows, use %APPDATA%\claude or %USERPROFILE%\.claude
+        const appDataDir = process.env.APPDATA || path.join(homeDir, 'AppData', 'Roaming');
+        const modernConfigDir = path.join(appDataDir, 'claude');
+        const legacyConfigDir = path.join(homeDir, '.claude');
+        
+        const fs = require('fs');
+        
+        try {
+            // Check if modern config directory exists
+            if (fs.existsSync(modernConfigDir)) {
+                return modernConfigDir;
+            }
+            
+            // Check if legacy directory exists
+            if (fs.existsSync(legacyConfigDir)) {
+                return legacyConfigDir;
+            }
+            
+            // If neither exists, use the modern location
+            return modernConfigDir;
+        } catch (error) {
+            // If we can't check file system, default to modern location
+            return modernConfigDir;
+        }
+    }
+
+    // Unix/macOS configuration
     // 2. Check XDG_CONFIG_HOME (or default to ~/.config)
     const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(homeDir, '.config');
     const modernConfigDir = path.join(xdgConfigHome, 'claude');

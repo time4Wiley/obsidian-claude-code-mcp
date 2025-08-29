@@ -120,10 +120,21 @@ _As of 2025-06-09_
 
 -   Verify the plugin is enabled in Obsidian
 -   Check for `.lock` files in Claude config directory:
-    -   `$CLAUDE_CONFIG_DIR/ide/` if environment variable is set
-    -   `~/.config/claude/ide/` (default since Claude Code v1.0.30)
-    -   `~/.claude/ide/` (legacy location)
+    -   **Windows**: 
+        -   `%APPDATA%\claude\ide\` (modern location)
+        -   `%USERPROFILE%\.claude\ide\` (legacy location)
+    -   **macOS/Linux**:
+        -   `$CLAUDE_CONFIG_DIR/ide/` if environment variable is set
+        -   `~/.config/claude/ide/` (default since Claude Code v1.0.30)
+        -   `~/.claude/ide/` (legacy location)
 -   Restart Obsidian if the vault doesn't appear in `/ide` list
+
+**Windows-specific issues:**
+
+-   **Terminal not working**: Ensure Python 3.7+ is installed and in PATH
+-   **Build errors**: Use `npm` instead of `bun` on Windows if issues occur
+-   **Path issues**: The plugin automatically handles Windows path separators
+-   **Lock file permissions**: Run Obsidian as administrator if lock files aren't created
 
 **Port conflicts:**
 
@@ -180,6 +191,62 @@ This separation ensures that:
 - Claude Code gets access to IDE-specific functionality
 - Standard MCP clients only see appropriate tools
 - Shared functionality is available to all clients
+
+## Installation from Local Repository
+
+### Windows-Specific Installation
+
+1. **Prerequisites**:
+   - Install [Node.js](https://nodejs.org/) (includes npm)
+   - Install [Git for Windows](https://git-scm.com/download/win)
+   - Optional: Python 3.7+ for terminal features (from [python.org](https://www.python.org/downloads/))
+
+2. **Clone and Build**:
+   ```cmd
+   git clone https://github.com/yourusername/obsidian-claude-code-mcp.git
+   cd obsidian-claude-code-mcp
+   npm install
+   npm run build
+   ```
+
+3. **Install to Obsidian**:
+   - Find your vault's plugins folder: `[Your Vault]\.obsidian\plugins`
+   - Create a new folder: `claude-code-mcp`
+   - Copy these files from the build output:
+     - `main.js`
+     - `manifest.json`
+     - `styles.css` (if exists)
+
+4. **Enable the Plugin**:
+   - Open Obsidian Settings
+   - Go to Community Plugins
+   - Enable "Obsidian Claude Code"
+
+5. **Configure Claude Desktop** (Windows):
+   - Edit `%APPDATA%\Claude\claude_desktop_config.json`
+   - Add the configuration as shown in the MCP Client Configuration section above
+
+### macOS/Linux Installation
+
+1. **Prerequisites**:
+   - Node.js and npm installed
+   - Git installed
+
+2. **Clone and Build**:
+   ```bash
+   git clone https://github.com/yourusername/obsidian-claude-code-mcp.git
+   cd obsidian-claude-code-mcp
+   npm install
+   npm run build
+   ```
+
+3. **Install to Obsidian**:
+   ```bash
+   # Replace [Your Vault] with your vault path
+   cp -r main.js manifest.json styles.css "[Your Vault]/.obsidian/plugins/claude-code-mcp/"
+   ```
+
+4. **Enable the plugin in Obsidian settings**
 
 ## Development
 
