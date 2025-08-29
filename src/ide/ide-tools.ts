@@ -1,6 +1,7 @@
 import { App } from "obsidian";
 import { McpReplyFunction } from "../mcp/types";
 import { ToolImplementation, ToolDefinition } from "../shared/tool-registry";
+import { WorkspaceManager } from "../obsidian/workspace-manager";
 
 // IDE-specific tool definitions
 export const IDE_TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -66,7 +67,10 @@ export const IDE_TOOL_DEFINITIONS: ToolDefinition[] = [
 
 // IDE-specific tool implementations
 export class IdeTools {
-	constructor(private app: App) {}
+	constructor(
+		private app: App,
+		private workspaceManager?: WorkspaceManager
+	) {}
 
 	createImplementations(): ToolImplementation[] {
 		return [
@@ -135,14 +139,77 @@ export class IdeTools {
 				name: "getDiagnostics",
 				handler: async (args: any, reply: McpReplyFunction) => {
 					try {
-						// For Obsidian, we don't have traditional LSP diagnostics
-						// but we can provide basic system/vault diagnostic information
-						const diagnostics = {
+						// Get basic vault information
+						const activeFile = this.app.workspace.getActiveFile();
+						const diagnostics: any = {
 							vaultName: this.app.vault.getName(),
 							fileCount: this.app.vault.getFiles().length,
-							activeFile: this.app.workspace.getActiveFile()?.path || null,
+							activeFile: activeFile?.path || null,
 							timestamp: new Date().toISOString(),
 						};
+
+						// Add canvas-specific diagnostics if a canvas is active
+						if (activeFile && activeFile.extension === 'canvas' && this.workspaceManager) {
+							const canvasState = this.workspaceManager.getCanvasState();
+							const canvasManager = this.workspaceManager.getCanvasStateManager();
+							
+							if (canvasState.canvasData) {
+								const selectedNodes = canvasManager.getSelectedNodes();
+								const selectedEdges = canvasManager.getSelectedEdges();
+								
+								diagnostics.canvas = {
+									isActive: true,
+									file: activeFile.path,
+									stats: {
+										totalNodes: canvasState.canvasData.nodes?.length || 0,
+										totalEdges: canvasState.canvasData.edges?.length || 0,
+										selectedNodes: selectedNodes.length,
+										selectedEdges: selectedEdges.length,
+									},
+									selection: {
+										nodes: selectedNodes.map(node => ({
+											id: node.id,
+											type: node.type,
+											content: this.getNodeContent(node),
+										})),
+										edges: selectedEdges.map(edge => ({
+											id: edge.id,
+											from: edge.fromNode,
+											to: edge.toNode,
+											label: edge.label,
+										})),
+										selectedText: canvasState.selectedText,
+									},
+									nodeTypes: this.countNodeTypes(canvasState.canvasData.nodes),
+									groups: canvasState.groupHierarchy.size,
+								};
+
+								// Add node relationships for selected nodes
+								if (selectedNodes.length > 0) {
+									diagnostics.canvas.selectedNodeRelations = selectedNodes.map(node => {
+										const relations = canvasManager.getNodeRelations(node.id);
+										return {
+											nodeId: node.id,
+											type: node.type,
+											connectedNodes: relations?.connectedNodes ? Array.from(relations.connectedNodes) : [],
+											parentGroup: relations?.parentGroup,
+											incomingEdges: relations?.incomingEdges?.length || 0,
+											outgoingEdges: relations?.outgoingEdges?.length || 0,
+										};
+									});
+								}
+							} else {
+								diagnostics.canvas = {
+									isActive: true,
+									file: activeFile.path,
+									error: "Canvas data not yet loaded",
+								};
+							}
+						} else {
+							diagnostics.canvas = {
+								isActive: false,
+							};
+						}
 
 						return reply({
 							result: {
@@ -161,5 +228,31 @@ export class IdeTools {
 				},
 			},
 		];
+	}
+
+	private getNodeContent(node: any): string {
+		switch (node.type) {
+			case 'text':
+				const text = (node as any).text;
+				return text ? (text.length > 100 ? text.substring(0, 100) + '...' : text) : '';
+			case 'file':
+				return (node as any).file || '';
+			case 'link':
+				return (node as any).url || '';
+			case 'group':
+				return (node as any).label || 'Untitled Group';
+			default:
+				return '';
+		}
+	}
+
+	private countNodeTypes(nodes: any[]): Record<string, number> {
+		const counts: Record<string, number> = {};
+		if (!nodes) return counts;
+		
+		for (const node of nodes) {
+			counts[node.type] = (counts[node.type] || 0) + 1;
+		}
+		return counts;
 	}
 }

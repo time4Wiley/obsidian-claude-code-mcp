@@ -86,7 +86,7 @@ export class McpDualServer {
 		}
 
 		// Register IDE-specific tools ONLY to WebSocket registry
-		const ideTools = new IdeTools(this.config.app);
+		const ideTools = new IdeTools(this.config.app, this.config.workspaceManager);
 		const ideImplementations = ideTools.createImplementations();
 		
 		for (let i = 0; i < IDE_TOOL_DEFINITIONS.length; i++) {
