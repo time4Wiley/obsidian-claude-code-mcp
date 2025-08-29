@@ -155,7 +155,7 @@ export class ChildProcessPseudoterminal implements Pseudoterminal {
   private async spawnChildProcess(args: PseudoterminalArgs): Promise<ChildProcess> {
     const isWindows = process.platform === "win32";
     
-    // On Windows, use the provided executable (which will be PowerShell or cmd.exe)
+    // On Windows, use the provided executable (which will be PowerShell 7, PowerShell 5.1, or cmd.exe)
     // On Unix, use the provided executable
     const shell = args.executable;
     const shellArgs = args.args || [];

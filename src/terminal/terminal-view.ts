@@ -188,27 +188,49 @@ export class ClaudeTerminalView extends ItemView {
 			let args: string[];
 			
 			if (isWindows) {
-				// Try PowerShell first, fallback to cmd.exe
-				// PowerShell provides a better terminal experience on Windows
-				shell = process.env.COMSPEC || "cmd.exe";
+				// Shell preference order: PowerShell 7 > PowerShell 5.1 > cmd.exe
+				// PowerShell 7 (pwsh.exe) provides the best terminal experience on Windows
 				
-				// Check if PowerShell is available
-				const powershellPath = process.env.SystemRoot 
+				const fs = require('fs');
+				
+				// First, try PowerShell 7 (pwsh.exe)
+				const pwsh7Path = "C:\\Program Files\\PowerShell\\7\\pwsh.exe";
+				const pwsh7PathX86 = "C:\\Program Files (x86)\\PowerShell\\7\\pwsh.exe";
+				
+				// Then PowerShell 5.1 (Windows PowerShell)
+				const powershell5Path = process.env.SystemRoot 
 					? `${process.env.SystemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`
 					: "powershell.exe";
 				
+				// Fallback to cmd.exe
+				const cmdPath = process.env.COMSPEC || "cmd.exe";
+				
 				try {
-					// Try to use PowerShell if available
-					const fs = require('fs');
-					if (fs.existsSync(powershellPath)) {
-						shell = powershellPath;
+					// Check for PowerShell 7 first
+					if (fs.existsSync(pwsh7Path)) {
+						shell = pwsh7Path;
 						args = ["-NoLogo", "-NoProfile"];
+						console.debug("[Terminal] Using PowerShell 7 (pwsh.exe)");
+					} else if (fs.existsSync(pwsh7PathX86)) {
+						shell = pwsh7PathX86;
+						args = ["-NoLogo", "-NoProfile"];
+						console.debug("[Terminal] Using PowerShell 7 x86 (pwsh.exe)");
+					} else if (fs.existsSync(powershell5Path)) {
+						// Fallback to PowerShell 5.1
+						shell = powershell5Path;
+						args = ["-NoLogo", "-NoProfile"];
+						console.debug("[Terminal] Using PowerShell 5.1");
 					} else {
+						// Final fallback to cmd.exe
+						shell = cmdPath;
 						args = [];
+						console.debug("[Terminal] Using cmd.exe");
 					}
 				} catch {
-					// Fallback to cmd.exe
+					// If file system check fails, use cmd.exe
+					shell = cmdPath;
 					args = [];
+					console.debug("[Terminal] Error checking shells, using cmd.exe");
 				}
 			} else {
 				shell = process.env.SHELL || "/bin/zsh";
