@@ -13,7 +13,7 @@ export interface ClaudeCodeSettings {
 
 export const DEFAULT_SETTINGS: ClaudeCodeSettings = {
 	autoCloseTerminalOnClaudeExit: true,
-	startupCommand: "claude",
+	startupCommand: "cl",
 	mcpHttpPort: 22360,
 	enableWebSocketServer: true,
 	enableHttpServer: true,
@@ -165,7 +165,7 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 				)
 				.addText((text) =>
 					text
-						.setPlaceholder("claude -c")
+						.setPlaceholder("cl -c")
 						.setValue(this.plugin.settings.startupCommand)
 						.onChange(async (value) => {
 							this.plugin.settings.startupCommand = value;
@@ -205,7 +205,7 @@ export class ClaudeCodeSettingTab extends PluginSettingTab {
 			wsDetails.innerHTML = `
 				<div>• Auto-discovery enabled via lock files</div>
 				<div>• Lock file: <code>${configDir}/ide/${serverInfo.wsPort}.lock</code></div>
-				<div>• Use <code>claude</code> CLI and select "Obsidian" from <code>/ide</code> list</div>
+				<div>• Use <code>cl</code> CLI and select "Obsidian" from <code>/ide</code> list</div>
 			`;
 		} else if (!this.plugin.settings.enableWebSocketServer) {
 			wsStatus.innerHTML = `
