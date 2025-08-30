@@ -42,7 +42,7 @@ const buildOptions = {
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outfile: "main.js",
+	outfile: "dist/main.js",
 	minify: false,
 	platform: "node",
 	conditions: ["node"],
